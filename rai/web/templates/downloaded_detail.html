@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ meta.get('title', name) }} — Ad Alta Voce{% endblock %}
+{% block content %}
+<a href="/" class="back">&larr; Home</a>
+
+<div class="audiobook-header">
+    {% if cover_url %}
+    <img src="{{ cover_url }}" alt="{{ name }}" class="cover-large">
+    {% endif %}
+    <div class="audiobook-meta">
+        <h2>{{ meta.get('title', name) }}</h2>
+        {% if meta.get('author') %}<p class="author">{{ meta.author }}</p>{% endif %}
+        {% if meta.get('reader') %}<p class="reader">Letto da {{ meta.reader }}</p>{% endif %}
+        {% if meta.get('description') %}<p class="description">{{ meta.description }}</p>{% endif %}
+        <p class="stats">
+            {{ episodes|length }} episodes downloaded
+            {% if meta.get('completed') %}
+            · <span class="done">Complete</span>
+            {% else %}
+            · <span class="pending">May have more episodes</span>
+            {% endif %}
+        </p>
+    </div>
+</div>
+
+<table class="episode-list">
+    <thead><tr><th>#</th><th>Filename</th><th>Size</th></tr></thead>
+    <tbody>
+    {% for ep in episodes %}
+    <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ ep.filename }}</td>
+        <td>{{ ep.size_mb }} MB</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% block title %}Ad Alta Voce{% endblock %}
+{% block content %}
+
+{# Scheduler status bar #}
+<div class="scheduler-bar">
+    <span class="scheduler-info">
+        Poller: every <strong>{{ scheduler.interval }}</strong>
+        {% if scheduler.last_run %}
+        · Last: {{ scheduler.last_run[:19] }}
+        {% endif %}
+        {% if scheduler.last_result and scheduler.last_result.audiobook %}
+        · {{ scheduler.last_result.audiobook }}
+        ({{ scheduler.last_result.episodes_downloaded }} new,
+         {{ scheduler.last_result.episodes_skipped }} skipped)
+        {% endif %}
+    </span>
+    <button id="poll-btn" onclick="triggerPoll()">Poll Now</button>
+</div>
+
+<div id="poll-progress" style="display:none">
+    <p id="poll-text">Polling...</p>
+    <div class="progress-bar-wrap">
+        <div class="progress-bar" id="poll-bar" style="width:0%"></div>
+    </div>
+</div>
+
+{# Section 1: Ora in onda #}
+<section class="section">
+    <h2 class="section-title">Ora in onda</h2>
+    {% if current %}
+    <div class="audiobook-header">
+        {% if current.cover_url %}
+        <img src="{{ current.cover_url }}" alt="{{ current.name }}" class="cover-large">
+        {% endif %}
+        <div class="audiobook-meta">
+            <h2>{{ current.name }}</h2>
+            {% if current.author %}<p class="author">{{ current.author }}</p>{% endif %}
+            {% if current.reader %}<p class="reader">Letto da {{ current.reader }}</p>{% endif %}
+            {% if current.description %}<p class="description">{{ current.description }}</p>{% endif %}
+            <p class="stats">{{ current.total }} episodes · {{ current.downloaded_count }} downloaded</p>
+            <button id="download-btn" onclick="startDownload()"
+                {% if current.downloading %}disabled{% endif %}
+                {% if current.downloaded_count == current.total %}disabled{% endif %}>
+                {% if current.downloading %}Downloading...
+                {% elif current.downloaded_count == current.total %}All Downloaded
+                {% else %}Download All
+                {% endif %}
+            </button>
+        </div>
+    </div>
+
+    <div id="dl-progress" {% if not current.downloading %}style="display:none"{% endif %}>
+        <p id="dl-text">Preparing...</p>
+        <div class="progress-bar-wrap">
+            <div class="progress-bar" id="dl-bar" style="width:0%"></div>
+        </div>
+    </div>
+
+    <table class="episode-list">
+        <thead><tr><th>#</th><th>Title</th><th>Duration</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for ep in current.episodes %}
+        <tr id="ep-{{ ep.episode or loop.index }}">
+            <td>{{ ep.episode or loop.index }}</td>
+            <td>{{ ep.episode_title or ep.toptitle or ep.title }}</td>
+            <td>{{ ep._duration }}</td>
+            <td class="status">
+                {% if ep._downloaded %}
+                    <span class="done">&#10003;</span>
+                {% else %}
+                    <span class="pending">&mdash;</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty">Could not load current episodes. Check VPN connection.</p>
+    {% endif %}
+</section>
+
+{# Section 2: Scaricati #}
+{% if downloaded %}
+<section class="section">
+    <h2 class="section-title">Scaricati</h2>
+    <div class="downloaded-grid">
+        {% for book in downloaded %}
+        <a href="/downloaded/{{ book.name }}" class="card">
+            <div class="card-img-wrap">
+                {% if book.cover_url %}
+                <img src="{{ book.cover_url }}" alt="{{ book.title }}" loading="lazy">
+                {% else %}
+                <div class="card-placeholder">{{ book.title[:1] }}</div>
+                {% endif %}
+                {% if book.completed %}
+                <span class="badge-downloaded" title="Complete">&#10003;</span>
+                {% endif %}
+            </div>
+            <div class="card-info">
+                <h3>{{ book.title }}</h3>
+                <p>{{ book.episode_count }} episodes{% if book.author %} · {{ book.author }}{% endif %}</p>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{# Section 3: Catalogo #}
+<section class="section">
+    <div class="catalog-header">
+        <h2 class="section-title">Catalogo</h2>
+        <input type="text" id="search" placeholder="Search..." oninput="filterCards(this.value)">
+    </div>
+    <p class="catalog-count">{{ catalog|length }} audiobooks</p>
+    <div class="catalog-grid" id="grid">
+        {% for book in catalog %}
+        <div class="card card-small" data-title="{{ book.title|lower }}">
+            <div class="card-img-wrap">
+                <img src="{{ book._cover_url }}" alt="{{ book.title }}" loading="lazy">
+                {% if book._downloaded %}
+                <span class="badge-downloaded" title="Downloaded">&#10003;</span>
+                {% endif %}
+            </div>
+            <div class="card-info">
+                <h3>{{ book.title }}</h3>
+                {% if book.subtitle %}<p>{{ book.subtitle|truncate(60) }}</p>{% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterCards(q) {
+    q = q.toLowerCase();
+    document.querySelectorAll('#grid .card').forEach(c => {
+        c.style.display = c.dataset.title.includes(q) ? '' : 'none';
+    });
+}
+
+function startDownload() {
+    const btn = document.getElementById('download-btn');
+    const area = document.getElementById('dl-progress');
+    const text = document.getElementById('dl-text');
+    const bar = document.getElementById('dl-bar');
+
+    btn.disabled = true;
+    btn.textContent = 'Downloading...';
+    area.style.display = 'block';
+
+    const source = new EventSource('/api/download/current');
+
+    source.onmessage = function(event) {
+        const d = JSON.parse(event.data);
+        if (d.type === 'status') {
+            text.textContent = d.message;
+        } else if (d.type === 'episode_start') {
+            text.textContent = 'Downloading ' + d.episode + '/' + d.total + ': ' + d.title;
+            bar.style.width = '0%';
+        } else if (d.type === 'progress') {
+            const pct = d.total_bytes > 0 ? (d.bytes / d.total_bytes * 100) : 0;
+            bar.style.width = pct.toFixed(1) + '%';
+        } else if (d.type === 'episode_done' || d.type === 'episode_skip') {
+            const row = document.getElementById('ep-' + d.episode);
+            if (row) {
+                const cell = row.querySelector('.status');
+                if (d.status === 'downloaded' || d.status === 'skipped') {
+                    cell.innerHTML = '<span class="done">&#10003;</span>';
+                } else {
+                    cell.innerHTML = '<span class="error">&#10007;</span>';
+                }
+            }
+            bar.style.width = '100%';
+        } else if (d.type === 'error') {
+            text.textContent = 'Error: ' + d.message;
+        }
+    };
+
+    source.addEventListener('complete', function() {
+        source.close();
+        text.textContent = 'Download complete!';
+        bar.style.width = '100%';
+        btn.textContent = 'All Downloaded';
+    });
+
+    source.onerror = function() {
+        source.close();
+        btn.disabled = false;
+        btn.textContent = 'Retry Download';
+    };
+}
+
+function triggerPoll() {
+    const btn = document.getElementById('poll-btn');
+    const area = document.getElementById('poll-progress');
+    const text = document.getElementById('poll-text');
+    const bar = document.getElementById('poll-bar');
+
+    btn.disabled = true;
+    btn.textContent = 'Polling...';
+    area.style.display = 'block';
+
+    // POST triggers the poll, which returns SSE
+    const source = new EventSource('/api/poll');
+
+    source.onmessage = function(event) {
+        const d = JSON.parse(event.data);
+        if (d.type === 'status') {
+            text.textContent = d.message;
+        } else if (d.type === 'episode_start') {
+            text.textContent = 'Downloading ' + d.episode + '/' + d.total + ': ' + d.title;
+            bar.style.width = '0%';
+        } else if (d.type === 'progress') {
+            const pct = d.total_bytes > 0 ? (d.bytes / d.total_bytes * 100) : 0;
+            bar.style.width = pct.toFixed(1) + '%';
+        } else if (d.type === 'episode_done' || d.type === 'episode_skip') {
+            bar.style.width = '100%';
+        } else if (d.type === 'error') {
+            text.textContent = 'Error: ' + d.message;
+        }
+    };
+
+    source.addEventListener('complete', function() {
+        source.close();
+        text.textContent = 'Poll complete!';
+        bar.style.width = '100%';
+        btn.disabled = false;
+        btn.textContent = 'Poll Now';
+        setTimeout(() => { area.style.display = 'none'; }, 3000);
+        setTimeout(() => { location.reload(); }, 3500);
+    });
+
+    source.onerror = function() {
+        source.close();
+        btn.disabled = false;
+        btn.textContent = 'Poll Now';
+        text.textContent = 'Poll failed.';
+    };
+}
+</script>
+{% endblock %}
