@@ -4,12 +4,13 @@ import json
 import logging
 import os
 import threading
+import time
 from pathlib import Path
 from queue import Queue
 
 from flask import Flask, Response, render_template, send_file, stream_with_context
 
-from rai import core, poller
+from rai import core, poller, tagger
 
 log = logging.getLogger(__name__)
 
@@ -183,6 +184,74 @@ def create_app():
         except ValueError:
             return "Forbidden", 403
         return send_file(full_path)
+
+    @app.route("/audiobook/<slug>")
+    def audiobook_detail(slug):
+        """Detail page for a catalog audiobook."""
+        try:
+            data = core.fetch_audiobook(f"/audiolibri/{slug}", _session)
+        except Exception:
+            return "Audiobook not found", 404
+
+        cards = core.extract_cards(data)
+        if not cards:
+            return "No episodes found", 404
+
+        title = data.get("title") or data.get("name") or slug
+
+        # Parse author from first episode description
+        desc = cards[0].get("description", "")
+        reader_name, _, author_name = core.parse_description(desc)
+
+        # Fallback author from podcast_info
+        if not author_name:
+            pi = data.get("podcast_info", {})
+            if isinstance(pi, dict):
+                author_name = pi.get("author", "")
+
+        # Cover from catalog card
+        catalog_card = core.find_catalog_card(title, _session)
+        cover_url = ""
+        if catalog_card:
+            images = catalog_card.get("images", {})
+            cover_url = images.get("square") or images.get("cover") or catalog_card.get("image", "")
+            cover_url = core.full_image_url(cover_url)
+
+        # Book description from catalog or podcast_info
+        book_description = ""
+        if catalog_card:
+            book_description = catalog_card.get("description", "")
+        if not book_description:
+            pi = data.get("podcast_info", {})
+            if isinstance(pi, dict):
+                book_description = pi.get("description", "")
+
+        # Check download status per episode
+        author_clean = core.sanitize_filename(author_name) if author_name else "Ad Alta Voce"
+        title_clean = core.sanitize_filename(title)
+        output_dir = DOWNLOADS_DIR / author_clean / title_clean
+
+        sorted_cards = sorted(cards, key=lambda c: int(c.get("episode", 0) or 0))
+        for i, ep in enumerate(sorted_cards):
+            filename = core.build_episode_filename(ep, i)
+            ep["_downloaded"] = (output_dir / filename).exists()
+            ep["_duration"] = ep.get("literal_duration", ep.get("duration_small_format", ""))
+
+        downloaded_count = sum(1 for e in sorted_cards if e.get("_downloaded"))
+        downloading = _is_any_download_active()
+
+        return render_template(
+            "audiobook.html",
+            title=title,
+            author=author_name or "",
+            description=book_description,
+            cover_url=cover_url,
+            slug=slug,
+            episodes=sorted_cards,
+            total=len(sorted_cards),
+            downloaded_count=downloaded_count,
+            downloading=downloading,
+        )
 
     return app
 
