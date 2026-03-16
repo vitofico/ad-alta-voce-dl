@@ -253,6 +253,215 @@ def create_app():
             downloading=downloading,
         )
 
+    @app.route("/api/download/<slug>")
+    def download_audiobook(slug):
+        """Stream download of a catalog audiobook via SSE."""
+        if _is_any_download_active():
+            return Response("Download already in progress", status=409)
+
+        # Fetch audiobook metadata
+        try:
+            data = core.fetch_audiobook(f"/audiolibri/{slug}", _session)
+        except Exception:
+            return Response("Audiobook not found", status=404)
+
+        cards = core.extract_cards(data)
+        if not cards:
+            return Response("No episodes found", status=404)
+
+        title = data.get("title") or data.get("name") or slug
+
+        # Parse author
+        desc = cards[0].get("description", "")
+        reader_name, _, author_name = core.parse_description(desc)
+        if not author_name:
+            pi = data.get("podcast_info", {})
+            if isinstance(pi, dict):
+                author_name = pi.get("author", "")
+
+        # Cover URL
+        catalog_card = core.find_catalog_card(title, _session)
+        cover_url = ""
+        if catalog_card:
+            images = catalog_card.get("images", {})
+            cover_url = images.get("square") or images.get("cover") or catalog_card.get("image", "")
+
+        author_clean = core.sanitize_filename(author_name) if author_name else "Ad Alta Voce"
+        title_clean = core.sanitize_filename(title)
+        output_dir = DOWNLOADS_DIR / author_clean / title_clean
+
+        q: Queue = Queue()
+        dl_session = core.make_session()
+        sorted_cards = sorted(cards, key=lambda c: int(c.get("episode", 0) or 0))
+
+        def do_download():
+            total = len(sorted_cards)
+            episode_meta_list = []
+            try:
+                output_dir.mkdir(parents=True, exist_ok=True)
+
+                for idx, card in enumerate(sorted_cards):
+                    ep_title = card.get("title", card.get("name", f"episode_{idx + 1}"))
+                    ep_num = idx + 1
+                    filename = core.build_episode_filename(card, idx)
+                    filepath = output_dir / filename
+
+                    episode_meta_list.append(
+                        {
+                            "episode": ep_num,
+                            "title": ep_title,
+                            "path_id": card.get("path_id", ""),
+                        }
+                    )
+
+                    # Skip if already downloaded
+                    if filepath.exists() and filepath.stat().st_size > 0:
+                        q.put(
+                            json.dumps(
+                                {
+                                    "type": "episode_done",
+                                    "episode": ep_num,
+                                    "total": total,
+                                    "status": "skipped",
+                                }
+                            )
+                        )
+                        continue
+
+                    audio_url = core.get_audio_url(card)
+                    if not audio_url:
+                        q.put(
+                            json.dumps(
+                                {
+                                    "type": "episode_done",
+                                    "episode": ep_num,
+                                    "total": total,
+                                    "status": "error: no audio URL",
+                                }
+                            )
+                        )
+                        continue
+
+                    q.put(
+                        json.dumps(
+                            {
+                                "type": "episode_start",
+                                "episode": ep_num,
+                                "total": total,
+                                "title": ep_title,
+                            }
+                        )
+                    )
+
+                    try:
+                        direct_url = core.resolve_relinker(audio_url, dl_session)
+
+                        last_emit_time = [0.0]
+
+                        def progress_cb(bytes_dl, total_bytes, _ep=ep_num, _total=total):
+                            now = time.monotonic()
+                            if now - last_emit_time[0] >= 0.5 or bytes_dl >= total_bytes:
+                                last_emit_time[0] = now
+                                q.put(
+                                    json.dumps(
+                                        {
+                                            "type": "progress",
+                                            "episode": _ep,
+                                            "total": _total,
+                                            "bytes": bytes_dl,
+                                            "total_bytes": total_bytes,
+                                        }
+                                    )
+                                )
+
+                        core.download_file(direct_url, filepath, dl_session, progress_cb)
+
+                        # Tag MP3
+                        audiobook_data = {
+                            "title": title,
+                            "podcast_info": {
+                                "author": author_name or "",
+                                "genres": (
+                                    catalog_card.get("genres", []) if catalog_card else []
+                                ),
+                                "images": (
+                                    catalog_card.get("images", {}) if catalog_card else {}
+                                ),
+                                "image": cover_url,
+                            },
+                        }
+                        try:
+                            tagger.tag_episode(
+                                filepath, card, audiobook_data, idx, total, dl_session
+                            )
+                        except Exception as e:
+                            log.warning("Tagging failed for %s: %s", filename, e)
+
+                        q.put(
+                            json.dumps(
+                                {
+                                    "type": "episode_done",
+                                    "episode": ep_num,
+                                    "total": total,
+                                    "status": "downloaded",
+                                }
+                            )
+                        )
+
+                    except Exception as e:
+                        tmp = filepath.with_suffix(".tmp")
+                        if tmp.exists():
+                            tmp.unlink()
+                        q.put(
+                            json.dumps(
+                                {
+                                    "type": "episode_done",
+                                    "episode": ep_num,
+                                    "total": total,
+                                    "status": f"error: {e}",
+                                }
+                            )
+                        )
+
+                # Save metadata and cover
+                poller._save_metadata(
+                    output_dir=output_dir,
+                    title=title,
+                    author=author_name,
+                    reader=reader_name,
+                    description=(
+                        catalog_card.get("description", "") if catalog_card else ""
+                    ),
+                    cover_url=cover_url,
+                    episodes=episode_meta_list,
+                    completed=True,
+                    session=dl_session,
+                    source="catalog",
+                )
+
+            except Exception as e:
+                q.put(json.dumps({"type": "error", "message": str(e)}))
+            finally:
+                q.put(None)
+
+        thread = threading.Thread(target=do_download, daemon=True)
+        _active_downloads[slug] = thread
+        thread.start()
+
+        def generate():
+            while True:
+                msg = q.get()
+                if msg is None:
+                    yield "event: complete\ndata: {}\n\n"
+                    break
+                yield f"data: {msg}\n\n"
+
+        return Response(
+            stream_with_context(generate()),
+            mimetype="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
     return app
 
 
