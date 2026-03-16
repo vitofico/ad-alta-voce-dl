@@ -8,8 +8,7 @@ import logging
 import os
 import re
 import threading
-import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from rai import core, poller
 
@@ -121,7 +120,7 @@ class Scheduler:
 
         while not self._stop_event.is_set():
             with self._lock:
-                self._next_run = datetime.now(timezone.utc).timestamp() + self._interval
+                self._next_run = datetime.now(UTC).timestamp() + self._interval
 
             # Wait for interval or stop signal
             if self._stop_event.wait(timeout=self._interval):
@@ -143,7 +142,7 @@ class Scheduler:
             result = poller.poll_episodi(session=session, progress_callback=progress_callback)
 
             with self._lock:
-                self._last_run = datetime.now(timezone.utc).isoformat()
+                self._last_run = datetime.now(UTC).isoformat()
                 self._last_result = result
 
             if result.get("success"):
@@ -162,7 +161,7 @@ class Scheduler:
         except Exception as e:
             log.error("Poll error: %s", e, exc_info=True)
             with self._lock:
-                self._last_run = datetime.now(timezone.utc).isoformat()
+                self._last_run = datetime.now(UTC).isoformat()
                 self._last_result = {"success": False, "error": str(e)}
             return self._last_result
 

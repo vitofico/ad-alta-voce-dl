@@ -1,0 +1,15 @@
+.git
+.venv
+.env
+.claude
+__pycache__
+*.pyc
+downloads/
+docs/
+vpn/
+*.tmp
+*.md
+.dockerignore
+.gitignore
+.python-version
+.github

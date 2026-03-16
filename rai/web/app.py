@@ -3,13 +3,12 @@
 import json
 import logging
 import threading
-import time
 from pathlib import Path
 from queue import Queue
 
 from flask import Flask, Response, jsonify, render_template, send_file, stream_with_context
 
-from rai import core, poller, tagger
+from rai import core, poller
 from rai.scheduler import get_scheduler
 
 log = logging.getLogger(__name__)
@@ -75,10 +74,12 @@ def create_app():
 
         episodes = []
         for f in mp3_files:
-            episodes.append({
-                "filename": f.name,
-                "size_mb": f"{f.stat().st_size / 1024 / 1024:.1f}",
-            })
+            episodes.append(
+                {
+                    "filename": f.name,
+                    "size_mb": f"{f.stat().st_size / 1024 / 1024:.1f}",
+                }
+            )
 
         has_cover = (audiobook_dir / "cover.jpg").exists()
         cover_url = ""
@@ -107,6 +108,7 @@ def create_app():
 
         def do_download():
             try:
+
                 def progress_cb(msg):
                     q.put(json.dumps(msg))
 
@@ -144,6 +146,7 @@ def create_app():
 
         def do_poll():
             try:
+
                 def progress_cb(msg):
                     q.put(json.dumps(msg))
 
@@ -175,6 +178,11 @@ def create_app():
     def scheduler_status():
         """Return scheduler status as JSON."""
         return jsonify(sched.get_status())
+
+    @app.route("/health")
+    def health():
+        """Health check endpoint for Docker."""
+        return "ok"
 
     @app.route("/dl-files/<path:filepath>")
     def serve_download_file(filepath):
@@ -258,15 +266,21 @@ def _get_downloaded_audiobooks():
         meta = _load_audiobook_metadata(d)
         has_cover = (d / "cover.jpg").exists()
 
-        downloaded.append({
-            "name": d.name,
-            "title": meta.get("title", d.name),
-            "author": meta.get("author", ""),
-            "reader": meta.get("reader", ""),
-            "episode_count": mp3_count,
-            "completed": meta.get("completed", False),
-            "cover_url": f"/dl-files/{d.name}/cover.jpg" if has_cover else core.full_image_url(meta.get("cover_url", "")),
-        })
+        downloaded.append(
+            {
+                "name": d.name,
+                "title": meta.get("title", d.name),
+                "author": meta.get("author", ""),
+                "reader": meta.get("reader", ""),
+                "episode_count": mp3_count,
+                "completed": meta.get("completed", False),
+                "cover_url": (
+                    f"/dl-files/{d.name}/cover.jpg"
+                    if has_cover
+                    else core.full_image_url(meta.get("cover_url", ""))
+                ),
+            }
+        )
 
     return downloaded
 
@@ -277,7 +291,7 @@ def _load_audiobook_metadata(audiobook_dir):
     if meta_path.exists():
         try:
             return json.loads(meta_path.read_text())
-        except (json.JSONDecodeError, OSError):
+        except json.JSONDecodeError, OSError:
             pass
     return {}
 

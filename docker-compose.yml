@@ -27,12 +27,15 @@ services:
       start_period: 30s
 
   dl:
-    build: .
+    image: ghcr.io/vitofico/ad-alta-voce-dl:latest
+    # build: .  # uncomment for local development
     container_name: rai-dl
     network_mode: "service:gluetun"
     depends_on:
       gluetun:
         condition: service_healthy
+    environment:
+      - POLL_INTERVAL=${POLL_INTERVAL:-1d}
     volumes:
       - ./downloads:/downloads
     restart: unless-stopped

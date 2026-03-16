@@ -2,8 +2,7 @@
 
 from pathlib import Path
 
-import requests
-from mutagen.id3 import APIC, ID3, ID3NoHeaderError, TALB, TCON, TDRC, TIT2, TPE1, TRCK
+from mutagen.id3 import APIC, ID3, TALB, TCON, TDRC, TIT2, TPE1, TRCK, ID3NoHeaderError
 
 from rai import core
 
@@ -29,7 +28,7 @@ def tag_episode(filepath, card, audiobook_data, idx, total, session):
     episode_num = card.get("episode_number") or card.get("episode") or (idx + 1)
     try:
         episode_num = int(episode_num)
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         episode_num = idx + 1
 
     tag_mp3(

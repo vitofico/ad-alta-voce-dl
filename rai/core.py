@@ -20,10 +20,12 @@ CACHE_TTL = 600  # 10 minutes
 
 def make_session(proxy=None):
     s = requests.Session()
-    s.headers.update({
-        "User-Agent": USER_AGENT,
-        "Referer": f"{BASE_URL}/",
-    })
+    s.headers.update(
+        {
+            "User-Agent": USER_AGENT,
+            "Referer": f"{BASE_URL}/",
+        }
+    )
     if proxy:
         s.proxies = {"http": proxy, "https": proxy}
     return s
@@ -103,7 +105,7 @@ def build_episode_filename(card, idx):
     try:
         episode_num = int(episode_num)
         return f"{episode_num:03d} - {sanitize_filename(title)}.mp3"
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return f"{idx + 1:03d} - {sanitize_filename(title)}.mp3"
 
 

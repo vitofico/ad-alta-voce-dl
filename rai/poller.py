@@ -7,7 +7,7 @@ and downloads new episodes idempotently.
 import json
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from rai import core, tagger
@@ -24,7 +24,7 @@ def _load_state():
     if STATE_FILE.exists():
         try:
             return json.loads(STATE_FILE.read_text())
-        except (json.JSONDecodeError, OSError):
+        except json.JSONDecodeError, OSError:
             log.warning("Corrupt state file, starting fresh")
     return {
         "current_audiobook": None,
@@ -39,8 +39,9 @@ def _save_state(state):
     STATE_FILE.write_text(json.dumps(state, indent=2, ensure_ascii=False))
 
 
-def _save_metadata(output_dir, title, author, reader, description, cover_url,
-                   episodes, completed, session):
+def _save_metadata(
+    output_dir, title, author, reader, description, cover_url, episodes, completed, session
+):
     """Save audiobook metadata and cover to disk."""
     meta = {
         "title": title,
@@ -53,7 +54,7 @@ def _save_metadata(output_dir, title, author, reader, description, cover_url,
         "episodes": episodes,
         "source": "episodi",
         "completed": completed,
-        "last_updated": datetime.now(timezone.utc).isoformat(),
+        "last_updated": datetime.now(UTC).isoformat(),
     }
 
     # Cache cover image to disk
@@ -98,7 +99,7 @@ def poll_episodi(session=None, progress_callback=None):
         "episodes_failed": 0,
         "is_new_audiobook": False,
         "error": None,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
     def emit(msg):
@@ -146,10 +147,8 @@ def poll_episodi(session=None, progress_callback=None):
                 try:
                     prev_meta = json.loads(prev_meta_path.read_text())
                     prev_meta["completed"] = True
-                    prev_meta["last_updated"] = datetime.now(timezone.utc).isoformat()
-                    prev_meta_path.write_text(
-                        json.dumps(prev_meta, indent=2, ensure_ascii=False)
-                    )
+                    prev_meta["last_updated"] = datetime.now(UTC).isoformat()
+                    prev_meta_path.write_text(json.dumps(prev_meta, indent=2, ensure_ascii=False))
                     log.info("Marked %s as completed", prev_audiobook)
                 except Exception as e:
                     log.warning("Failed to mark %s as completed: %s", prev_audiobook, e)
@@ -188,12 +187,14 @@ def poll_episodi(session=None, progress_callback=None):
             filename = core.build_episode_filename(card, idx)
             filepath = output_dir / filename
 
-            episode_meta_list.append({
-                "episode": ep_num,
-                "title": ep_title,
-                "path_id": path_id,
-                "filename": filename,
-            })
+            episode_meta_list.append(
+                {
+                    "episode": ep_num,
+                    "title": ep_title,
+                    "path_id": path_id,
+                    "filename": filename,
+                }
+            )
 
             # Track seen episodes
             if path_id and path_id not in seen_paths:
@@ -202,12 +203,14 @@ def poll_episodi(session=None, progress_callback=None):
             # Skip if already downloaded
             if filepath.exists() and filepath.stat().st_size > 0:
                 result["episodes_skipped"] += 1
-                emit({
-                    "type": "episode_skip",
-                    "episode": ep_num,
-                    "total": total,
-                    "title": ep_title,
-                })
+                emit(
+                    {
+                        "type": "episode_skip",
+                        "episode": ep_num,
+                        "total": total,
+                        "title": ep_title,
+                    }
+                )
                 log.debug("Skipping %s (already exists)", filename)
                 continue
 
@@ -219,12 +222,14 @@ def poll_episodi(session=None, progress_callback=None):
                 continue
 
             try:
-                emit({
-                    "type": "episode_start",
-                    "episode": ep_num,
-                    "total": total,
-                    "title": ep_title,
-                })
+                emit(
+                    {
+                        "type": "episode_start",
+                        "episode": ep_num,
+                        "total": total,
+                        "title": ep_title,
+                    }
+                )
 
                 direct_url = core.resolve_relinker(audio_url, session)
 
@@ -234,13 +239,15 @@ def poll_episodi(session=None, progress_callback=None):
                     now = time.monotonic()
                     if now - last_emit_time[0] >= 0.5 or bytes_dl >= total_bytes:
                         last_emit_time[0] = now
-                        emit({
-                            "type": "progress",
-                            "episode": _ep,
-                            "total": _total,
-                            "bytes": bytes_dl,
-                            "total_bytes": total_bytes,
-                        })
+                        emit(
+                            {
+                                "type": "progress",
+                                "episode": _ep,
+                                "total": _total,
+                                "bytes": bytes_dl,
+                                "total_bytes": total_bytes,
+                            }
+                        )
 
                 core.download_file(direct_url, filepath, session, progress_cb)
 
@@ -261,12 +268,14 @@ def poll_episodi(session=None, progress_callback=None):
                     log.warning("Tagging failed for %s: %s", filename, e)
 
                 result["episodes_downloaded"] += 1
-                emit({
-                    "type": "episode_done",
-                    "episode": ep_num,
-                    "total": total,
-                    "status": "downloaded",
-                })
+                emit(
+                    {
+                        "type": "episode_done",
+                        "episode": ep_num,
+                        "total": total,
+                        "status": "downloaded",
+                    }
+                )
                 log.info("Downloaded %s", filename)
 
             except Exception as e:
@@ -274,19 +283,21 @@ def poll_episodi(session=None, progress_callback=None):
                 tmp = filepath.with_suffix(".tmp")
                 if tmp.exists():
                     tmp.unlink()
-                emit({
-                    "type": "episode_done",
-                    "episode": ep_num,
-                    "total": total,
-                    "status": f"error: {e}",
-                })
+                emit(
+                    {
+                        "type": "episode_done",
+                        "episode": ep_num,
+                        "total": total,
+                        "status": f"error: {e}",
+                    }
+                )
                 log.error("Failed to download %s: %s", filename, e)
 
         # 6. Save metadata and state
         if audiobook_name not in state.get("episodes_seen", {}):
             state["episodes_seen"] = state.get("episodes_seen", {})
         state["episodes_seen"][audiobook_name] = seen_paths
-        state["last_poll"] = datetime.now(timezone.utc).isoformat()
+        state["last_poll"] = datetime.now(UTC).isoformat()
         _save_state(state)
 
         _save_metadata(
