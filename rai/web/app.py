@@ -21,6 +21,31 @@ _session = core.make_session()
 
 # Track active downloads
 _active_downloads: dict[str, threading.Thread] = {}
+_download_lock = threading.Lock()
+
+# Download status for API polling (updated by download threads)
+_download_status: dict = {}
+
+
+def _reset_download_status():
+    """Reset download status to idle."""
+    _download_status.clear()
+    _download_status.update(
+        {
+            "active": False,
+            "slug": None,
+            "title": None,
+            "total_episodes": 0,
+            "episodes_downloaded": 0,
+            "episodes_skipped": 0,
+            "episodes_failed": 0,
+            "current_episode": None,
+            "current_episode_progress": 0.0,
+        }
+    )
+
+
+_reset_download_status()
 
 
 def _is_any_download_active():
@@ -30,6 +55,11 @@ def _is_any_download_active():
 
 def create_app():
     app = Flask(__name__)
+
+    # Register REST API (flask-restx under /api/v1/)
+    from rai.web.api import create_api
+
+    create_api(app)
 
     @app.route("/")
     def home():
@@ -101,15 +131,51 @@ def create_app():
         dl_session = core.make_session()
 
         def do_download():
+            with _download_lock:
+                _download_status.update(
+                    {
+                        "active": True,
+                        "slug": "current",
+                        "title": "Currently airing",
+                        "total_episodes": 0,
+                        "episodes_downloaded": 0,
+                        "episodes_skipped": 0,
+                        "episodes_failed": 0,
+                        "current_episode": None,
+                        "current_episode_progress": 0.0,
+                    }
+                )
             try:
 
                 def progress_cb(msg):
+                    with _download_lock:
+                        if msg.get("type") == "episode_start":
+                            _download_status["current_episode"] = msg.get("title")
+                            _download_status["current_episode_progress"] = 0.0
+                            _download_status["total_episodes"] = msg.get("total", 0)
+                        elif msg.get("type") == "progress":
+                            tb = msg.get("total_bytes", 0)
+                            if tb > 0:
+                                _download_status["current_episode_progress"] = round(
+                                    msg.get("bytes", 0) / tb * 100, 1
+                                )
+                        elif msg.get("type") == "episode_done":
+                            s = msg.get("status", "")
+                            if s == "downloaded":
+                                _download_status["episodes_downloaded"] += 1
+                            elif s == "skipped":
+                                _download_status["episodes_skipped"] += 1
+                            elif s.startswith("error"):
+                                _download_status["episodes_failed"] += 1
                     q.put(json.dumps(msg))
 
                 poller.poll_episodi(session=dl_session, progress_callback=progress_cb)
             except Exception as e:
                 q.put(json.dumps({"type": "error", "message": str(e)}))
             finally:
+                with _download_lock:
+                    _download_status["active"] = False
+                    _download_status["current_episode"] = None
                 q.put(None)
 
         thread = threading.Thread(target=do_download, daemon=True)
@@ -297,6 +363,20 @@ def create_app():
         def do_download():
             total = len(sorted_cards)
             episode_meta_list = []
+            with _download_lock:
+                _download_status.update(
+                    {
+                        "active": True,
+                        "slug": slug,
+                        "title": title,
+                        "total_episodes": total,
+                        "episodes_downloaded": 0,
+                        "episodes_skipped": 0,
+                        "episodes_failed": 0,
+                        "current_episode": None,
+                        "current_episode_progress": 0.0,
+                    }
+                )
             try:
                 output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -316,6 +396,8 @@ def create_app():
 
                     # Skip if already downloaded
                     if filepath.exists() and filepath.stat().st_size > 0:
+                        with _download_lock:
+                            _download_status["episodes_skipped"] += 1
                         q.put(
                             json.dumps(
                                 {
@@ -330,6 +412,8 @@ def create_app():
 
                     audio_url = core.get_audio_url(card)
                     if not audio_url:
+                        with _download_lock:
+                            _download_status["episodes_failed"] += 1
                         q.put(
                             json.dumps(
                                 {
@@ -342,6 +426,9 @@ def create_app():
                         )
                         continue
 
+                    with _download_lock:
+                        _download_status["current_episode"] = ep_title
+                        _download_status["current_episode_progress"] = 0.0
                     q.put(
                         json.dumps(
                             {
@@ -362,6 +449,13 @@ def create_app():
                             now = time.monotonic()
                             if now - last_emit_time[0] >= 0.5 or bytes_dl >= total_bytes:
                                 last_emit_time[0] = now
+                                pct = (
+                                    round(bytes_dl / total_bytes * 100, 1)
+                                    if total_bytes > 0
+                                    else 0.0
+                                )
+                                with _download_lock:
+                                    _download_status["current_episode_progress"] = pct
                                 q.put(
                                     json.dumps(
                                         {
@@ -397,6 +491,8 @@ def create_app():
                         except Exception as e:
                             log.warning("Tagging failed for %s: %s", filename, e)
 
+                        with _download_lock:
+                            _download_status["episodes_downloaded"] += 1
                         q.put(
                             json.dumps(
                                 {
@@ -412,6 +508,8 @@ def create_app():
                         tmp = filepath.with_suffix(".tmp")
                         if tmp.exists():
                             tmp.unlink()
+                        with _download_lock:
+                            _download_status["episodes_failed"] += 1
                         q.put(
                             json.dumps(
                                 {
@@ -442,6 +540,9 @@ def create_app():
             except Exception as e:
                 q.put(json.dumps({"type": "error", "message": str(e)}))
             finally:
+                with _download_lock:
+                    _download_status["active"] = False
+                    _download_status["current_episode"] = None
                 q.put(None)
 
         thread = threading.Thread(target=do_download, daemon=True)
