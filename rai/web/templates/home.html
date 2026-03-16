@@ -106,7 +106,7 @@
     <p class="catalog-count">{{ catalog|length }} audiobooks</p>
     <div class="catalog-grid" id="grid">
         {% for book in catalog %}
-        <div class="card card-small" data-title="{{ book.title|lower }}">
+        <a href="/audiobook/{{ book._slug }}" class="card card-small" data-title="{{ book.title|lower }}">
             <div class="card-img-wrap">
                 <img src="{{ book._cover_url }}" alt="{{ book.title }}" loading="lazy">
                 {% if book._downloaded %}
@@ -117,7 +117,7 @@
                 <h3>{{ book.title }}</h3>
                 {% if book.subtitle %}<p>{{ book.subtitle|truncate(60) }}</p>{% endif %}
             </div>
-        </div>
+        </a>
         {% endfor %}
     </div>
 </section>
