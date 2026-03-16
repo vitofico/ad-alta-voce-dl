@@ -52,7 +52,8 @@ def _audiobook_dir(author, title):
 
 
 def _save_metadata(
-    output_dir, title, author, reader, description, cover_url, episodes, completed, session
+    output_dir, title, author, reader, description, cover_url, episodes, completed, session,
+    source="episodi",
 ):
     """Save audiobook metadata and cover to disk."""
     meta = {
@@ -64,7 +65,7 @@ def _save_metadata(
         "cover_cached": False,
         "episode_count": len(episodes),
         "episodes": episodes,
-        "source": "episodi",
+        "source": source,
         "completed": completed,
         "last_updated": datetime.now(UTC).isoformat(),
     }

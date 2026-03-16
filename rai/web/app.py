@@ -22,6 +22,11 @@ _session = core.make_session()
 _active_downloads: dict[str, threading.Thread] = {}
 
 
+def _is_any_download_active():
+    """Check if any download thread is currently running."""
+    return any(t.is_alive() for t in _active_downloads.values())
+
+
 def create_app():
     app = Flask(__name__)
 
@@ -88,7 +93,7 @@ def create_app():
     @app.route("/api/download/current")
     def download_current():
         """Stream download of the currently-airing audiobook via SSE."""
-        if "current" in _active_downloads and _active_downloads["current"].is_alive():
+        if _is_any_download_active():
             return Response("Download already in progress", status=409)
 
         q: Queue = Queue()
@@ -127,7 +132,7 @@ def create_app():
     @app.route("/api/poll")
     def manual_poll():
         """Trigger a manual poll (returns SSE stream)."""
-        if "current" in _active_downloads and _active_downloads["current"].is_alive():
+        if _is_any_download_active():
             return Response("Download already in progress", status=409)
 
         q: Queue = Queue()
@@ -215,7 +220,7 @@ def _fetch_current_audiobook():
             ep["_downloaded"] = (output_dir / filename).exists()
             ep["_duration"] = ep.get("literal_duration", ep.get("duration_small_format", ""))
 
-        downloading = "current" in _active_downloads and _active_downloads["current"].is_alive()
+        downloading = _is_any_download_active()
 
         return {
             "name": audiobook_name,
