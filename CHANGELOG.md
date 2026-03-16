@@ -3,17 +3,20 @@
 ## [Unreleased]
 
 ### Changed
-- Dockerfile: use `ghcr.io/astral-sh/uv:python3.14-trixie-slim` as base image
-- docker-compose.yml: pull from GHCR instead of local build
-- Upgraded to Python 3.14
-- Switched to CalVer versioning (YYYY.MM.DD)
+- Downloads now use `Author/Title/` directory structure (Audiobookshelf-compatible)
+- Replaced internal Python scheduler with external scheduling (K8s CronJob)
+- Downloads directory defaults to `/audiobooks` (was `/downloads`)
+- Poller state stored in separate `/state` directory
+- `make_session()` reads `HTTP_PROXY`/`HTTPS_PROXY` from environment
 
 ### Added
-- GitHub Actions workflow to build and push Docker image to GHCR
-- `/health` endpoint for Docker health checks
-- `.dockerignore` for smaller build context
-- `README.md` with setup and usage instructions
-- Ruff linter configuration in `pyproject.toml`
+- `python -m rai.poller` CLI entrypoint for CronJob / cron usage
+- Configurable `DOWNLOADS_DIR` and `POLLER_STATE_DIR` env vars
+- Kubernetes manifests for theficos-cluster (gluetun VPN gateway, web deployment, CronJob poller)
+
+### Removed
+- `rai/scheduler.py` — scheduling now handled by K8s CronJob
+- `schedule` Python dependency
 
 ## [2026.03.16]
 
@@ -23,4 +26,6 @@
 - Periodic poller for currently-airing episodes with configurable interval
 - ID3v2.4 metadata tagging with cover art
 - Docker Compose setup with gluetun VPN for Italian geo-restriction
+- GitHub Actions workflow to build and push Docker image to GHCR
+- `/health` endpoint for Docker health checks
 - Support for ProtonVPN, NordVPN, and custom WireGuard configurations

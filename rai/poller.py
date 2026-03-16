@@ -1,11 +1,16 @@
-"""Periodic poller for RAI Ad Alta Voce episodi feed.
+"""Poller for RAI Ad Alta Voce episodi feed.
 
 Polls /programmi/adaltavoce.json, detects the currently-airing audiobook,
 and downloads new episodes idempotently.
+
+Directory structure (Audiobookshelf-compatible):
+    <DOWNLOADS_DIR>/<Author>/<Title>/001 - Episode.mp3
 """
 
 import json
 import logging
+import os
+import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -14,9 +19,9 @@ from rai import core, tagger
 
 log = logging.getLogger(__name__)
 
-DOWNLOADS_DIR = Path("/downloads")
-POLLER_STATE_DIR = DOWNLOADS_DIR / ".poller"
-STATE_FILE = POLLER_STATE_DIR / "state.json"
+DOWNLOADS_DIR = Path(os.environ.get("DOWNLOADS_DIR", "/audiobooks"))
+STATE_DIR = Path(os.environ.get("POLLER_STATE_DIR", "/state"))
+STATE_FILE = STATE_DIR / "poller-state.json"
 
 
 def _load_state():
@@ -35,8 +40,15 @@ def _load_state():
 
 def _save_state(state):
     """Persist poller state to disk."""
-    POLLER_STATE_DIR.mkdir(parents=True, exist_ok=True)
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
     STATE_FILE.write_text(json.dumps(state, indent=2, ensure_ascii=False))
+
+
+def _audiobook_dir(author, title):
+    """Build the output directory path: <DOWNLOADS_DIR>/<Author>/<Title>."""
+    author_clean = core.sanitize_filename(author) if author else "Ad Alta Voce"
+    title_clean = core.sanitize_filename(title)
+    return DOWNLOADS_DIR / author_clean / title_clean
 
 
 def _save_metadata(
@@ -121,7 +133,6 @@ def poll_episodi(session=None, progress_callback=None):
         # 2. Extract audiobook info
         audiobook_name = core.parse_audiobook_from_episodi(cards)
         if not audiobook_name:
-            # Fall back to block title or first card
             audiobook_name = data.get("block", {}).get("title", "Unknown")
 
         result["audiobook"] = audiobook_name
@@ -135,13 +146,14 @@ def poll_episodi(session=None, progress_callback=None):
         # 3. Load state and detect audiobook change
         state = _load_state()
         prev_audiobook = state.get("current_audiobook")
+        prev_author = state.get("current_author")
 
         if prev_audiobook and prev_audiobook != audiobook_name:
             result["is_new_audiobook"] = True
             log.info("Audiobook changed: %s -> %s", prev_audiobook, audiobook_name)
 
             # Mark previous audiobook as completed
-            prev_dir = DOWNLOADS_DIR / core.sanitize_filename(prev_audiobook)
+            prev_dir = _audiobook_dir(prev_author, prev_audiobook)
             prev_meta_path = prev_dir / "metadata.json"
             if prev_meta_path.exists():
                 try:
@@ -154,6 +166,7 @@ def poll_episodi(session=None, progress_callback=None):
                     log.warning("Failed to mark %s as completed: %s", prev_audiobook, e)
 
         state["current_audiobook"] = audiobook_name
+        state["current_author"] = author
 
         # 4. Find book-specific cover from catalog
         catalog_card = core.find_catalog_card(audiobook_name, session)
@@ -166,8 +179,8 @@ def poll_episodi(session=None, progress_callback=None):
         if not book_description:
             book_description = desc
 
-        # 5. Download episodes
-        output_dir = DOWNLOADS_DIR / core.sanitize_filename(audiobook_name)
+        # 5. Download episodes (Author/Title structure for Audiobookshelf)
+        output_dir = _audiobook_dir(author, audiobook_name)
         output_dir.mkdir(parents=True, exist_ok=True)
         total = len(cards)
 
@@ -252,7 +265,6 @@ def poll_episodi(session=None, progress_callback=None):
                 core.download_file(direct_url, filepath, session, progress_cb)
 
                 # Tag MP3
-                # Build a pseudo audiobook_data dict for the tagger
                 audiobook_data = {
                     "title": audiobook_name,
                     "podcast_info": {
@@ -325,3 +337,22 @@ def poll_episodi(session=None, progress_callback=None):
         log.error("Poll failed: %s", e, exc_info=True)
 
     return result
+
+
+if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+    )
+    result = poll_episodi()
+    if result["success"]:
+        log.info(
+            "Done: %s — %d downloaded, %d skipped, %d failed",
+            result["audiobook"],
+            result["episodes_downloaded"],
+            result["episodes_skipped"],
+            result["episodes_failed"],
+        )
+    else:
+        log.error("Poll failed: %s", result["error"])
+        sys.exit(1)

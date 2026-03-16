@@ -1,5 +1,6 @@
 """Core download logic shared by CLI and web UI."""
 
+import os
 import re
 import time
 
@@ -26,6 +27,7 @@ def make_session(proxy=None):
             "Referer": f"{BASE_URL}/",
         }
     )
+    proxy = proxy or os.environ.get("HTTP_PROXY") or os.environ.get("HTTPS_PROXY")
     if proxy:
         s.proxies = {"http": proxy, "https": proxy}
     return s

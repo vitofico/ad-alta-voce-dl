@@ -1,14 +1,13 @@
 [project]
 name = "ad-alta-voce-dl"
 version = "2026.03.16"
-description = "RAI Ad Alta Voce audiobook downloader with periodic poller"
+description = "RAI Ad Alta Voce audiobook downloader"
 requires-python = ">=3.14"
 dependencies = [
     "requests",
     "tqdm",
     "flask",
     "mutagen",
-    "schedule",
 ]
 
 [project.scripts]

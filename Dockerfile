@@ -10,9 +10,8 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY rai_download.py .
 COPY rai/ rai/
 
-# Non-root user
-RUN useradd --create-home app
-USER app
+ENV DOWNLOADS_DIR=/audiobooks
+ENV POLLER_STATE_DIR=/state
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]

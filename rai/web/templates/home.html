@@ -2,19 +2,8 @@
 {% block title %}Ad Alta Voce{% endblock %}
 {% block content %}
 
-{# Scheduler status bar #}
 <div class="scheduler-bar">
-    <span class="scheduler-info">
-        Poller: every <strong>{{ scheduler.interval }}</strong>
-        {% if scheduler.last_run %}
-        · Last: {{ scheduler.last_run[:19] }}
-        {% endif %}
-        {% if scheduler.last_result and scheduler.last_result.audiobook %}
-        · {{ scheduler.last_result.audiobook }}
-        ({{ scheduler.last_result.episodes_downloaded }} new,
-         {{ scheduler.last_result.episodes_skipped }} skipped)
-        {% endif %}
-    </span>
+    <span class="scheduler-info">Ad Alta Voce Downloader</span>
     <button id="poll-btn" onclick="triggerPoll()">Poll Now</button>
 </div>
 
@@ -87,7 +76,7 @@
     <h2 class="section-title">Scaricati</h2>
     <div class="downloaded-grid">
         {% for book in downloaded %}
-        <a href="/downloaded/{{ book.name }}" class="card">
+        <a href="/downloaded/{{ book.author_dir }}/{{ book.name }}" class="card">
             <div class="card-img-wrap">
                 {% if book.cover_url %}
                 <img src="{{ book.cover_url }}" alt="{{ book.title }}" loading="lazy">
@@ -206,7 +195,6 @@ function triggerPoll() {
     btn.textContent = 'Polling...';
     area.style.display = 'block';
 
-    // POST triggers the poll, which returns SSE
     const source = new EventSource('/api/poll');
 
     source.onmessage = function(event) {
