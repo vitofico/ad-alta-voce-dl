@@ -10,6 +10,7 @@
 - `make_session()` reads `HTTP_PROXY`/`HTTPS_PROXY` from environment
 
 ### Added
+- Custom SVG favicon for the web UI (open book with sound waves)
 - `python -m rai.poller` CLI entrypoint for CronJob / cron usage
 - Configurable `DOWNLOADS_DIR` and `POLLER_STATE_DIR` env vars
 - Kubernetes manifests for theficos-cluster (gluetun VPN gateway, web deployment, CronJob poller)
