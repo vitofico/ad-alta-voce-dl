@@ -39,7 +39,7 @@ def tag_episode(filepath, card, audiobook_data, idx, total, session):
         track_number=episode_num,
         total_tracks=total,
         genre=core.first_genre(podcast_info),
-        year=core.extract_year(card),
+        year=core.extract_date(card),
         cover_url=core.best_cover_url(podcast_info),
         session=session,
     )

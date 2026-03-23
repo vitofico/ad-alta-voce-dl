@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Changed
+- ID3 date tag (`TDRC`) now stores full date (YYYY-MM-DD) instead of year-only
 - Downloads now use `Author/Title/` directory structure (Audiobookshelf-compatible)
 - Replaced internal Python scheduler with external scheduling (K8s CronJob)
 - Downloads directory defaults to `/audiobooks` (was `/downloads`)

@@ -199,17 +199,32 @@ def first_genre(podcast_info):
     return "Audiobook"
 
 
-def extract_year(card):
-    """Extract year from a card's create_date or date_tracking."""
+def extract_date(card):
+    """Extract full date (YYYY-MM-DD) from a card's date_tracking or create_date.
+
+    date_tracking is already ISO: "2014-07-10"
+    create_date is DD-MM-YYYY: "10-07-2014"
+    Falls back to year-only if parsing fails.
+    """
+    # date_tracking is already ISO
+    dt = card.get("date_tracking", "")
+    if dt and len(dt) == 10 and dt[4] == "-":
+        return dt
+
+    # create_date is DD-MM-YYYY
+    cd = card.get("create_date", "")
+    if cd and len(cd) == 10 and cd[2] == "-" and cd[5] == "-":
+        day, month, year = cd.split("-")
+        return f"{year}-{month}-{day}"
+
+    # Fallback: extract just the year
     for key in ("date_tracking", "create_date"):
         date = card.get(key, "")
-        if date and len(date) >= 4:
-            # date_tracking: "2014-07-10", create_date: "10-07-2014"
-            if "-" in date:
-                parts = date.split("-")
-                for p in parts:
-                    if len(p) == 4 and p.isdigit():
-                        return p
+        if date:
+            parts = date.split("-")
+            for p in parts:
+                if len(p) == 4 and p.isdigit():
+                    return p
     return ""
 
 
