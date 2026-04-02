@@ -259,6 +259,28 @@ def parse_audiobook_from_episodi(cards):
     return None
 
 
+def filter_cards_by_audiobook(cards, audiobook_name):
+    """Keep only cards belonging to the given audiobook.
+
+    The episodi feed may mix episodes from the current and previous audiobook.
+    Each card's episode_title is like '3. Uomini e no' — we compare the book
+    name portion against *audiobook_name* (case-insensitive).
+    """
+    filtered = []
+    target = audiobook_name.lower()
+    for card in cards:
+        et = card.get("episode_title", card.get("toptitle", ""))
+        if et:
+            m = re.match(r"\d+\.\s*(.*)", et)
+            if m and m.group(1).strip().lower() == target:
+                filtered.append(card)
+                continue
+        # No parseable episode_title — include as fallback
+        if not et:
+            filtered.append(card)
+    return filtered
+
+
 def parse_description(description):
     """Parse 'Reader legge BookName Di Author' from episode description.
 

@@ -578,6 +578,11 @@ def _fetch_current_audiobook():
         if not audiobook_name:
             return None
 
+        # Filter out episodes from other audiobooks (feed may mix old + new)
+        cards = core.filter_cards_by_audiobook(cards, audiobook_name)
+        if not cards:
+            return None
+
         desc = cards[0].get("description", "")
         reader_name, _, author_name = core.parse_description(desc)
 

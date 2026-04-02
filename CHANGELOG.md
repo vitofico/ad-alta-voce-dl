@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- Episodi feed mixing episodes from previous audiobook into the current one during transitions
+
 ### Changed
 - ID3 date tag (`TDRC`) now stores full date (YYYY-MM-DD) instead of year-only
 - Downloads now use `Author/Title/` directory structure (Audiobookshelf-compatible)

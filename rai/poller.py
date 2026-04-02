@@ -140,6 +140,13 @@ def poll_episodi(session=None, progress_callback=None):
         log.info("Current audiobook: %s", audiobook_name)
         emit({"type": "status", "message": f"Current audiobook: {audiobook_name}"})
 
+        # Filter out episodes from other audiobooks (the feed may mix old + new)
+        cards = core.filter_cards_by_audiobook(cards, audiobook_name)
+        if not cards:
+            result["error"] = f"No episodes found for '{audiobook_name}' after filtering"
+            result["success"] = False
+            return result
+
         # Parse author/reader from description
         desc = cards[0].get("description", "")
         reader, _book, author = core.parse_description(desc)
