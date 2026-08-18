@@ -13,3 +13,21 @@ wheels/
 .env
 downloads/
 *.tmp
+
+# Local agent / editor state
+.claude/
+
+# Caches
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.DS_Store
+
+# Secrets (guardrail; nothing tracked)
+.env.*
+!.env.example
+*.pem
+*.key
+
+# VPN config
+vpn/
