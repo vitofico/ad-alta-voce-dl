@@ -79,6 +79,16 @@ docker compose up -d
 
 Open http://localhost:5000.
 
+### Without a VPN
+
+You do not need VPN credentials to see the UI. This starts the app on its own, no gluetun, no `.env`:
+
+```bash
+docker compose up -d dl-local
+```
+
+Open http://127.0.0.1:5000. Naming the service activates its compose profile, so the VPN sidecar stays out of it, and the port is bound to loopback rather than the LAN. Downloads will fail unless you are in Italy, which is expected: this path is for working on the app, not for filling a library. Use `docker compose up -d` for that.
+
 > [!WARNING]
 > **Keep this on your own machine or LAN.** The web UI has **no authentication of any kind**: anyone who can reach port 5000 can browse your library and trigger downloads. It also runs on Flask's development server, which is not built for public exposure. Do not port-forward it. If you need remote access, put it behind a reverse proxy that handles auth, and run it under a production WSGI server such as gunicorn or waitress.
 
@@ -100,21 +110,42 @@ Use the **service credentials** your provider issues for manual configuration, n
 | `VPN_TYPE` | `openvpn` | `openvpn` or `wireguard` |
 | `OPENVPN_USER` / `OPENVPN_PASSWORD` | | Provider service credentials |
 | `SERVER_COUNTRIES` | `Italy` | Must stay Italy for RAI to serve content |
-| `POLL_INTERVAL` | `1d` | How often to check for new episodes: `30m`, `1h`, `6h`, `1d`, `7d` |
-| `DOWNLOADS_DIR` | `/audiobooks` | Where finished audiobooks are written |
-| `POLLER_STATE_DIR` | `/state` | Where poller progress is persisted |
+| `AUDIOBOOKS_DIR` | `./downloads` | Host directory mounted as the library. Point it at your Audiobookshelf library and finished books land there directly |
+| `WEB_BIND_ADDR` | `0.0.0.0` | Host address the UI is published on. Set to `127.0.0.1` to keep it off the LAN |
+| `PROXY_BIND_ADDR` | `127.0.0.1` | Host address gluetun's HTTP proxy is published on. Loopback by default: an open proxy lets anyone route traffic through your VPN account |
+| `PUID` / `PGID` | `1000` | UID and GID the container runs as. It must be able to write `AUDIOBOOKS_DIR` |
+| `DOWNLOADS_DIR` | `/audiobooks` | Where the app writes, inside the container |
+| `POLLER_STATE_DIR` | `/state` | Where poller progress is persisted, inside the container |
+| `HTTP_PROXY` / `HTTPS_PROXY` | | Proxy for RAI requests. Only applies when running outside Docker |
 
-The compose file mounts `DOWNLOADS_DIR` as a volume, so point it at your Audiobookshelf library and finished books appear there directly.
+The container runs as an unprivileged user. If downloads fail with permission errors, `AUDIOBOOKS_DIR` is owned by a different account: either `chown` it, or set `PUID`/`PGID` to match (`id -u`, `id -g`).
+
+### Scheduling the poller
+
+The poller runs one cycle and exits, so the schedule lives outside the app. Trigger it from **Controlla ora** in the UI, from the API, or from cron:
+
+```bash
+# every day at 07:00
+0 7 * * *  curl -fsS -X POST http://127.0.0.1:5000/api/v1/system/poll
+```
+
+A one-off cycle inside the running container works too:
+
+```bash
+docker compose exec dl python -m rai.poller
+```
 
 ## Web UI
 
-Served on port 5000:
+Served on port 5000, in Italian, matching the source programme:
 
 - **Ora in onda** shows the audiobook currently being broadcast, with a one-click download of everything aired so far.
-- **Catalogo** browses the full back catalogue.
+- **Catalogo** browses the full back catalogue as a searchable grid of cover art.
 - **Scaricati** lists what you already have, reading straight from disk.
 
-Downloads report progress over Server-Sent Events, so episode-by-episode status arrives live rather than after a long silence.
+Downloads stream their progress over Server-Sent Events, so the progress bar and the per-episode state update live without reloading the page. Each episode shows one of four states at a glance: *In attesa* (queued), *In corso* (downloading), *Scaricata* (done), or *Errore* (failed).
+
+The interface follows your system light or dark theme automatically, works down to narrow phone screens, and respects `prefers-reduced-motion`. Colours meet the WCAG AA contrast ratio in both themes, and covers that are missing or slow to load fall back to a lettered tile rather than a broken image.
 
 ## REST API
 
@@ -168,7 +199,21 @@ uvx ruff check .                 # lint
 uvx ruff format .                # format
 ```
 
-Build the image locally by uncommenting `build: .` in `docker-compose.yml`, then `docker compose build`.
+Or use the Makefile. Run `make` on its own to list every target.
+
+| Target | What it does |
+|--------|--------------|
+| `make run` | Web UI on port 5000, writing to `./downloads` |
+| `make poll` | One poll cycle |
+| `make lint` | `uvx ruff check .` |
+| `make format` | `uvx ruff format .` |
+| `make up` | Start the stack behind the VPN |
+| `make up-local` | Start the stack without the VPN, UI only |
+| `make logs` | Follow container logs |
+| `make down` | Stop and remove both stacks |
+| `make docker-build` | Build the image from this working tree |
+
+`docker compose up -d dl-local` builds and runs your working tree directly, so there is nothing to uncomment for local work.
 
 ```
 rai/
