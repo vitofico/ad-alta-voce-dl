@@ -1,4 +1,6 @@
 services:
+  # RAI serves Ad Alta Voce to Italian IP addresses only, so every request the
+  # downloader makes leaves through this sidecar.
   gluetun:
     image: qmcgaw/gluetun:latest
     container_name: gluetun
@@ -7,17 +9,19 @@ services:
     devices:
       - /dev/net/tun:/dev/net/tun
     ports:
-      - "8888:8888"   # HTTP proxy
-      - "5000:5000"   # Flask web UI
+      # Web UI. Reachable from the LAN by default; set WEB_BIND_ADDR=127.0.0.1
+      # in .env to keep it on this machine only.
+      - "${WEB_BIND_ADDR:-0.0.0.0}:5000:5000"
+      # gluetun's HTTP proxy, loopback only: anyone who can reach it can route
+      # their own traffic through your VPN account.
+      - "${PROXY_BIND_ADDR:-127.0.0.1}:8888:8888"
     environment:
-      - VPN_SERVICE_PROVIDER=${VPN_SERVICE_PROVIDER:-nordvpn}
+      - VPN_SERVICE_PROVIDER=${VPN_SERVICE_PROVIDER:-protonvpn}
       - VPN_TYPE=${VPN_TYPE:-openvpn}
       - OPENVPN_USER=${OPENVPN_USER}
       - OPENVPN_PASSWORD=${OPENVPN_PASSWORD}
       - SERVER_COUNTRIES=${SERVER_COUNTRIES:-Italy}
       - HTTPPROXY=on
-    volumes:
-      - ./downloads:/audiobooks
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
@@ -26,9 +30,11 @@ services:
       retries: 5
       start_period: 30s
 
+  # The downloader. Shares gluetun's network namespace, so it has no ports of
+  # its own: gluetun publishes them. Healthcheck comes from the image (/health).
   dl:
     image: ghcr.io/vitofico/ad-alta-voce-dl:latest
-    # build: .  # uncomment for local development
+    # build: .  # uncomment to run your own working tree behind the VPN
     container_name: rai-dl
     network_mode: "service:gluetun"
     depends_on:
@@ -38,9 +44,35 @@ services:
       - DOWNLOADS_DIR=/audiobooks
       - POLLER_STATE_DIR=/state
     volumes:
-      - ./downloads:/audiobooks
+      - ${AUDIOBOOKS_DIR:-./downloads}:/audiobooks
       - dl-state:/state
+    user: "${PUID:-1000}:${PGID:-1000}"
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
+
+  # No-VPN path, for working on the app itself: docker compose up -d dl-local
+  # Naming the service activates its profile, so gluetun stays out of it and no
+  # credentials are needed. Builds from this working tree, binds to loopback.
+  # Downloads from RAI fail outside Italy; the UI comes up and is browsable.
+  dl-local:
+    profiles: ["local"]
+    build: .
+    image: ad-alta-voce-dl:local
+    container_name: rai-dl-local
+    ports:
+      - "127.0.0.1:5000:5000"
+    environment:
+      - DOWNLOADS_DIR=/audiobooks
+      - POLLER_STATE_DIR=/state
+    volumes:
+      - ${AUDIOBOOKS_DIR:-./downloads}:/audiobooks
+      - dl-state-local:/state
+    user: "${PUID:-1000}:${PGID:-1000}"
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
 
 volumes:
   dl-state:
+  dl-state-local:
