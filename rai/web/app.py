@@ -91,6 +91,10 @@ def create_app():
         audiobook_dir = DOWNLOADS_DIR / author / name
         if not audiobook_dir.is_dir():
             return "Not found", 404
+        try:
+            audiobook_dir.resolve().relative_to(DOWNLOADS_DIR.resolve())
+        except ValueError:
+            return "Forbidden", 403
 
         meta = _load_audiobook_metadata(audiobook_dir)
         mp3_files = sorted(audiobook_dir.glob("*.mp3"))
@@ -475,12 +479,8 @@ def create_app():
                             "title": title,
                             "podcast_info": {
                                 "author": author_name or "",
-                                "genres": (
-                                    catalog_card.get("genres", []) if catalog_card else []
-                                ),
-                                "images": (
-                                    catalog_card.get("images", {}) if catalog_card else {}
-                                ),
+                                "genres": (catalog_card.get("genres", []) if catalog_card else []),
+                                "images": (catalog_card.get("images", {}) if catalog_card else {}),
                                 "image": cover_url,
                             },
                         }
@@ -527,9 +527,7 @@ def create_app():
                     title=title,
                     author=author_name,
                     reader=reader_name,
-                    description=(
-                        catalog_card.get("description", "") if catalog_card else ""
-                    ),
+                    description=(catalog_card.get("description", "") if catalog_card else ""),
                     cover_url=cover_url,
                     episodes=episode_meta_list,
                     completed=True,
@@ -669,7 +667,7 @@ def _load_audiobook_metadata(audiobook_dir):
     if meta_path.exists():
         try:
             return json.loads(meta_path.read_text())
-        except json.JSONDecodeError, OSError:
+        except (json.JSONDecodeError, OSError):
             pass
     return {}
 
