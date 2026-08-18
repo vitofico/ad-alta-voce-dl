@@ -203,9 +203,7 @@ def create_api(app):
                     {
                         "number": i + 1,
                         "title": ep.get("title", ep.get("name", "")),
-                        "duration": ep.get(
-                            "literal_duration", ep.get("duration_small_format", "")
-                        ),
+                        "duration": ep.get("literal_duration", ep.get("duration_small_format", "")),
                         "downloaded": (output_dir / filename).exists(),
                     }
                 )
@@ -392,14 +390,9 @@ def create_api(app):
 
                             last_emit_time = [0.0]
 
-                            def progress_cb(
-                                bytes_dl, total_bytes, _ep=ep_num, _total=total
-                            ):
+                            def progress_cb(bytes_dl, total_bytes, _ep=ep_num, _total=total):
                                 now = time.monotonic()
-                                if (
-                                    now - last_emit_time[0] >= 0.5
-                                    or bytes_dl >= total_bytes
-                                ):
+                                if now - last_emit_time[0] >= 0.5 or bytes_dl >= total_bytes:
                                     last_emit_time[0] = now
                                     pct = (
                                         round(bytes_dl / total_bytes * 100, 1)
@@ -407,9 +400,7 @@ def create_api(app):
                                         else 0.0
                                     )
                                     with app_mod._download_lock:
-                                        app_mod._download_status[
-                                            "current_episode_progress"
-                                        ] = pct
+                                        app_mod._download_status["current_episode_progress"] = pct
 
                             core.download_file(direct_url, filepath, dl_session, progress_cb)
 
@@ -418,14 +409,10 @@ def create_api(app):
                                 "podcast_info": {
                                     "author": author_name or "",
                                     "genres": (
-                                        catalog_card.get("genres", [])
-                                        if catalog_card
-                                        else []
+                                        catalog_card.get("genres", []) if catalog_card else []
                                     ),
                                     "images": (
-                                        catalog_card.get("images", {})
-                                        if catalog_card
-                                        else {}
+                                        catalog_card.get("images", {}) if catalog_card else {}
                                     ),
                                     "image": cover_url,
                                 },
@@ -453,9 +440,7 @@ def create_api(app):
                         title=title,
                         author=author_name,
                         reader=reader_name,
-                        description=(
-                            catalog_card.get("description", "") if catalog_card else ""
-                        ),
+                        description=(catalog_card.get("description", "") if catalog_card else ""),
                         cover_url=cover_url,
                         episodes=episode_meta_list,
                         completed=True,
@@ -512,15 +497,13 @@ def create_api(app):
                             if msg.get("type") == "episode_start":
                                 app_mod._download_status["current_episode"] = msg.get("title")
                                 app_mod._download_status["current_episode_progress"] = 0.0
-                                app_mod._download_status["total_episodes"] = msg.get(
-                                    "total", 0
-                                )
+                                app_mod._download_status["total_episodes"] = msg.get("total", 0)
                             elif msg.get("type") == "progress":
                                 tb = msg.get("total_bytes", 0)
                                 if tb > 0:
-                                    app_mod._download_status[
-                                        "current_episode_progress"
-                                    ] = round(msg.get("bytes", 0) / tb * 100, 1)
+                                    app_mod._download_status["current_episode_progress"] = round(
+                                        msg.get("bytes", 0) / tb * 100, 1
+                                    )
                             elif msg.get("type") == "episode_done":
                                 s = msg.get("status", "")
                                 if s == "downloaded":
@@ -580,15 +563,13 @@ def create_api(app):
                             if msg.get("type") == "episode_start":
                                 app_mod._download_status["current_episode"] = msg.get("title")
                                 app_mod._download_status["current_episode_progress"] = 0.0
-                                app_mod._download_status["total_episodes"] = msg.get(
-                                    "total", 0
-                                )
+                                app_mod._download_status["total_episodes"] = msg.get("total", 0)
                             elif msg.get("type") == "progress":
                                 tb = msg.get("total_bytes", 0)
                                 if tb > 0:
-                                    app_mod._download_status[
-                                        "current_episode_progress"
-                                    ] = round(msg.get("bytes", 0) / tb * 100, 1)
+                                    app_mod._download_status["current_episode_progress"] = round(
+                                        msg.get("bytes", 0) / tb * 100, 1
+                                    )
                             elif msg.get("type") == "episode_done":
                                 s = msg.get("status", "")
                                 if s == "downloaded":
