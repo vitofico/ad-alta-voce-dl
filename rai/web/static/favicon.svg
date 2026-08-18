@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="6" fill="#0f1117"/>
+  <rect width="32" height="32" rx="7" fill="#1b1713"/>
   <!-- Open book -->
-  <path d="M6 22V9c3-2 6-2 10 0v13c-4-1.5-7-1.5-10 0z" fill="none" stroke="#7eb8da" stroke-width="1.5" stroke-linejoin="round"/>
-  <path d="M26 22V9c-3-2-6-2-10 0v13c4-1.5 7-1.5 10 0z" fill="none" stroke="#7eb8da" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M6 22V9c3-2 6-2 10 0v13c-4-1.5-7-1.5-10 0z" fill="none" stroke="#e3a071" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M26 22V9c-3-2-6-2-10 0v13c4-1.5 7-1.5 10 0z" fill="none" stroke="#e3a071" stroke-width="1.5" stroke-linejoin="round"/>
   <!-- Sound waves -->
-  <path d="M22 10a4 4 0 0 1 0 5" fill="none" stroke="#7eb8da" stroke-width="1.2" stroke-linecap="round"/>
-  <path d="M24 8a7 7 0 0 1 0 9" fill="none" stroke="#7eb8da" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M22 10a4 4 0 0 1 0 5" fill="none" stroke="#e3a071" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M24 8a7 7 0 0 1 0 9" fill="none" stroke="#e3a071" stroke-width="1.2" stroke-linecap="round"/>
 </svg>

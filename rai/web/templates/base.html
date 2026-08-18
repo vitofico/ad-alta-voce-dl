@@ -3,20 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
     <title>{% block title %}Ad Alta Voce{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <header>
-        <a href="/" class="logo">
-            <h1>Ad Alta Voce</h1>
-            <span class="subtitle">RAI Radio 3 · Audiobooks</span>
-        </a>
+    <a class="skip-link" href="#contenuto">Vai al contenuto</a>
+    <header class="site-header">
+        <div class="site-header-inner">
+            <a href="/" class="logo">
+                <svg class="logo-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+                    <path d="M6 22V9c3-2 6-2 10 0v13c-4-1.5-7-1.5-10 0z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                    <path d="M26 22V9c-3-2-6-2-10 0v13c4-1.5 7-1.5 10 0z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                    <path d="M22 10a4 4 0 0 1 0 5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                    <path d="M24 8a7 7 0 0 1 0 9" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                </svg>
+                <span class="logo-text">
+                    <h1>Ad Alta Voce</h1>
+                    <span class="subtitle">RAI Radio 3 &middot; Audiolibri</span>
+                </span>
+            </a>
+        </div>
     </header>
-    <main>
+    <main id="contenuto">
         {% block content %}{% endblock %}
     </main>
+    <footer class="site-footer">
+        <div class="site-footer-inner">
+            <span>Audiolibri di RAI Radio 3, organizzati per Audiobookshelf.</span>
+            <a href="/api/v1/">Documentazione API</a>
+        </div>
+    </footer>
     {% block scripts %}{% endblock %}
 </body>
 </html>

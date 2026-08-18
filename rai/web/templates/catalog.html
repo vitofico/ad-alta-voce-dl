@@ -1,17 +1,22 @@
 {% extends "base.html" %}
-{% block title %}Ad Alta Voce — Catalog{% endblock %}
+{% block title %}Catalogo &middot; Ad Alta Voce{% endblock %}
 {% block content %}
-<div class="catalog-header">
-    <p>{{ audiobooks|length }} audiobooks available</p>
-    <input type="text" id="search" placeholder="Search..." oninput="filterCards(this.value)">
+<div class="section-head catalog-header">
+    <h2 class="section-title">Catalogo</h2>
+    <span class="section-count">{{ audiobooks|length }} audiolibri disponibili</span>
+    <input type="text" id="search" placeholder="Cerca un titolo..." aria-label="Cerca nel catalogo" oninput="filterCards(this.value)">
 </div>
+{% if audiobooks %}
 <div class="catalog-grid" id="grid">
     {% for book in audiobooks %}
     <a href="/audiobook/{{ book._slug }}" class="card" data-title="{{ book.title|lower }}">
         <div class="card-img-wrap">
-            <img src="{{ book._cover_url }}" alt="{{ book.title }}" loading="lazy">
+            <div class="card-placeholder" aria-hidden="true">{{ (book.title or '')[:1] }}</div>
+            {% if book._cover_url %}
+            <img src="{{ book._cover_url }}" alt="Copertina di {{ book.title }}" loading="lazy">
+            {% endif %}
             {% if book._downloaded %}
-            <span class="badge-downloaded" title="Downloaded">&#10003;</span>
+            <span class="badge-downloaded" title="Scaricato">&#10003;</span>
             {% endif %}
         </div>
         <div class="card-info">
@@ -21,6 +26,9 @@
     </a>
     {% endfor %}
 </div>
+{% else %}
+<p class="empty">Catalogo non disponibile. Verifica la connessione VPN e ricarica la pagina.</p>
+{% endif %}
 {% endblock %}
 {% block scripts %}
 <script>

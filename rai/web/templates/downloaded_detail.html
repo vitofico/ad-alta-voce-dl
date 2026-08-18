@@ -1,38 +1,38 @@
 {% extends "base.html" %}
-{% block title %}{{ meta.get('title', name) }} — Ad Alta Voce{% endblock %}
+{% block title %}{{ meta.get('title', name) }} &middot; Ad Alta Voce{% endblock %}
 {% block content %}
-<a href="/" class="back">&larr; Home</a>
+<a href="/" class="back">&larr; Torna alla libreria</a>
 
 <div class="audiobook-header">
-    {% if cover_url %}
-    <img src="{{ cover_url }}" alt="{{ name }}" class="cover-large">
-    {% endif %}
+    <div class="cover-frame">
+        <div class="card-placeholder" aria-hidden="true">{{ (meta.get('title', name) or '')[:1] }}</div>
+        {% if cover_url %}
+        <img src="{{ cover_url }}" alt="Copertina di {{ name }}" class="cover-large">
+        {% endif %}
+    </div>
     <div class="audiobook-meta">
         <h2>{{ meta.get('title', name) }}</h2>
         {% if meta.get('author') %}<p class="author">{{ meta.author }}</p>{% endif %}
         {% if meta.get('reader') %}<p class="reader">Letto da {{ meta.reader }}</p>{% endif %}
         {% if meta.get('description') %}<p class="description">{{ meta.description }}</p>{% endif %}
         <p class="stats">
-            {{ episodes|length }} episodes downloaded
+            <span class="tag">{{ episodes|length }} puntate scaricate</span>
             {% if meta.get('completed') %}
-            · <span class="done">Complete</span>
+            <span class="tag tag-ok done">Completo</span>
             {% else %}
-            · <span class="pending">May have more episodes</span>
+            <span class="tag pending">Potrebbero esserci altre puntate</span>
             {% endif %}
         </p>
     </div>
 </div>
 
-<table class="episode-list">
-    <thead><tr><th>#</th><th>Filename</th><th>Size</th></tr></thead>
-    <tbody>
+<ol class="episode-list">
     {% for ep in episodes %}
-    <tr>
-        <td>{{ loop.index }}</td>
-        <td>{{ ep.filename }}</td>
-        <td>{{ ep.size_mb }} MB</td>
-    </tr>
+    <li class="episode episode-file">
+        <span class="episode-num">{{ loop.index }}</span>
+        <span class="episode-title">{{ ep.filename }}</span>
+        <span class="episode-duration">{{ ep.size_mb }} MB</span>
+    </li>
     {% endfor %}
-    </tbody>
-</table>
+</ol>
 {% endblock %}
