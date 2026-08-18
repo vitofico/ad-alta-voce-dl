@@ -1,0 +1,25 @@
+ad-alta-voce-dl
+Copyright (C) 2026 Vito Fico
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. See the LICENSE file for the full text.
+
+Third-party dependencies
+------------------------
+
+This project links the following libraries, which remain under their own
+licenses:
+
+  mutagen        GPL-2.0-or-later   (audio metadata tagging, imported by
+                                     rai/tagger.py)
+  requests       Apache-2.0
+  tqdm           MPL-2.0 AND MIT
+  flask          BSD-3-Clause
+  flask-restx    BSD-3-Clause
+
+The choice of GPL-3.0-or-later for this project follows from its direct use of
+mutagen, which is GPL-2.0-or-later. Distributed artifacts of this project,
+including the container image published to GHCR, are combined works and are
+covered by the GPL.
