@@ -107,7 +107,7 @@ def build_episode_filename(card, idx):
     try:
         episode_num = int(episode_num)
         return f"{episode_num:03d} - {sanitize_filename(title)}.mp3"
-    except ValueError, TypeError:
+    except (ValueError, TypeError):
         return f"{idx + 1:03d} - {sanitize_filename(title)}.mp3"
 
 

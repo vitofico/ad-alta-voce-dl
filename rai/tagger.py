@@ -28,7 +28,7 @@ def tag_episode(filepath, card, audiobook_data, idx, total, session):
     episode_num = card.get("episode_number") or card.get("episode") or (idx + 1)
     try:
         episode_num = int(episode_num)
-    except ValueError, TypeError:
+    except (ValueError, TypeError):
         episode_num = idx + 1
 
     tag_mp3(

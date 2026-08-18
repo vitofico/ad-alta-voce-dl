@@ -29,7 +29,7 @@ def _load_state():
     if STATE_FILE.exists():
         try:
             return json.loads(STATE_FILE.read_text())
-        except json.JSONDecodeError, OSError:
+        except (json.JSONDecodeError, OSError):
             log.warning("Corrupt state file, starting fresh")
     return {
         "current_audiobook": None,
@@ -52,7 +52,15 @@ def _audiobook_dir(author, title):
 
 
 def _save_metadata(
-    output_dir, title, author, reader, description, cover_url, episodes, completed, session,
+    output_dir,
+    title,
+    author,
+    reader,
+    description,
+    cover_url,
+    episodes,
+    completed,
+    session,
     source="episodi",
 ):
     """Save audiobook metadata and cover to disk."""
