@@ -68,14 +68,20 @@ If you add tests, use pytest, put them in `tests/`, and add the job to `.github/
 
 ## Commit messages
 
-Conventional commits, with an optional gitmoji after the type:
+Gitmoji + conventional commits. The emoji goes after the type, before the colon-space:
 
 ```
-feat(web): ✨ add per-episode retry button
-fix(poller): 🐛 stop mixing episodes across audiobook transitions
-docs: document the REST API endpoints
-chore: bump ruff to 0.9
+:sparkles: feat(web): add per-episode retry button
+:bug: fix(poller): stop mixing episodes across audiobook transitions
+:memo: docs: document the REST API endpoints
+:whale: chore(docker): add a healthcheck to the poller service
+:wrench: chore: bump ruff to 0.9
 ```
+
+Common gitmoji here: `:sparkles:` (feat), `:bug:` (fix), `:memo:` (docs),
+`:white_check_mark:` (tests), `:construction_worker:` (CI), `:wrench:` (chore),
+`:art:` (refactor/style), `:fire:` (removals), `:lock:` (security),
+`:page_facing_up:` (legal/license), `:whale:` (Docker).
 
 Types in use: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `ci`, `build`, `style`.
 
