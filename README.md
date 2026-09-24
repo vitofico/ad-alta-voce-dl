@@ -16,6 +16,13 @@
   <img src="https://img.shields.io/badge/python-3.11%2B-blue.svg" alt="Python 3.11+">
 </p>
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/catalog-dark.png">
+    <img src="docs/assets/catalog.png" width="900" alt="The web UI's Catalogo page: a searchable grid of 63 Ad Alta Voce audiobooks with their cover art, titles and blurbs.">
+  </picture>
+</p>
+
 ## What it is
 
 [Ad Alta Voce](https://www.raiplaysound.it/programmi/adaltavoce) is RAI Radio 3's serialized audiobook programme: a novel read aloud across dozens of episodes, one per weekday, free to stream. The catch is that it lives in RAI's own player, arrives an episode at a time, and carries no metadata your audiobook app understands.
@@ -142,6 +149,10 @@ Served on port 5000, in Italian, matching the source programme:
 - **Ora in onda** shows the audiobook currently being broadcast, with a one-click download of everything aired so far.
 - **Catalogo** browses the full back catalogue as a searchable grid of cover art.
 - **Scaricati** lists what you already have, reading straight from disk.
+
+<p align="center">
+  <img src="docs/assets/now-airing.png" width="800" alt="The Ora in onda section: the book currently on air, with its cover, reader, episode count, a Scarica tutto (download all) button and the episode list with durations and download states.">
+</p>
 
 Downloads stream their progress over Server-Sent Events, so the progress bar and the per-episode state update live without reloading the page. Each episode shows one of four states at a glance: *In attesa* (queued), *In corso* (downloading), *Scaricata* (done), or *Errore* (failed).
 
