@@ -10,6 +10,14 @@
   lists. Versions before 2026.08.18 wrote that layout, and the CLI still does.
   **Nothing is moved.** New episodes of such a book go into its existing folder
   instead of starting a second copy under `Author/Title/`
+- A book's episode list no longer interleaves the next book. RAI's Sorelle
+  Materassi page also lists episodes 1 to 5 of Uomini e no, which showed as
+  1, 1, 2, 2, ... and would have been downloaded into the same folder as a
+  second `001`, `002`, ... Episodes that name another book are dropped, and a
+  book never gets two files for one episode number, whatever the rest of the
+  file name says
+- Episodes RAI lists without a number are skipped with a logged warning,
+  instead of being numbered by position, which could take a real episode's number
 
 ### Changed
 - Covers are requested at display size from RAI's image resizer (400 px tiles,

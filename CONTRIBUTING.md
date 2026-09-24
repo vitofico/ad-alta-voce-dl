@@ -54,7 +54,7 @@ Be careful with ruff's `target-version`: it decides which modern syntax ruff con
 
 ## Tests
 
-There is no test suite yet. This is the most useful contribution available if you want one: the pure functions in `rai/core.py` (`parse_description`, `sanitize_filename`, `extract_cards`, `filter_cards_by_audiobook`) are self-contained and easy to cover without touching the network.
+There is no test suite yet. This is the most useful contribution available if you want one: the pure functions in `rai/core.py` (`parse_description`, `sanitize_filename`, `extract_cards`, `select_episodes`) are self-contained and easy to cover without touching the network.
 
 If you add tests, use pytest, put them in `tests/`, and add the job to `.github/workflows/lint.yml`. Never hit the live RAI API from a test; use recorded JSON fixtures.
 

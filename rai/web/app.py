@@ -269,9 +269,10 @@ def create_app():
             return "No episodes found", 404
 
         title = data.get("title") or data.get("name") or slug
+        sorted_cards = core.select_episodes(cards, title)
 
         # Parse author from first episode description
-        desc = cards[0].get("description", "")
+        desc = sorted_cards[0].get("description", "")
         reader_name, _, author_name = core.parse_description(desc)
 
         # Fallback author from podcast_info
@@ -300,10 +301,9 @@ def create_app():
         # Check download status per episode
         output_dir = core.book_dir(DOWNLOADS_DIR, author_name, title)
 
-        sorted_cards = sorted(cards, key=lambda c: int(c.get("episode", 0) or 0))
         for i, ep in enumerate(sorted_cards):
             filename = core.build_episode_filename(ep, i)
-            ep["_downloaded"] = (output_dir / filename).exists()
+            ep["_downloaded"] = bool(core.existing_episode_file(output_dir, filename))
             ep["_duration"] = ep.get("literal_duration", ep.get("duration_small_format", ""))
 
         downloaded_count = sum(1 for e in sorted_cards if e.get("_downloaded"))
@@ -339,9 +339,10 @@ def create_app():
             return Response("No episodes found", status=404)
 
         title = data.get("title") or data.get("name") or slug
+        sorted_cards = core.select_episodes(cards, title)
 
         # Parse author
-        desc = cards[0].get("description", "")
+        desc = sorted_cards[0].get("description", "")
         reader_name, _, author_name = core.parse_description(desc)
         if not author_name:
             pi = data.get("podcast_info", {})
@@ -359,7 +360,6 @@ def create_app():
 
         q: Queue = Queue()
         dl_session = core.make_session()
-        sorted_cards = sorted(cards, key=lambda c: int(c.get("episode", 0) or 0))
 
         def do_download():
             total = len(sorted_cards)
@@ -396,7 +396,7 @@ def create_app():
                     )
 
                     # Skip if already downloaded
-                    if filepath.exists() and filepath.stat().st_size > 0:
+                    if core.existing_episode_file(output_dir, filename):
                         with _download_lock:
                             _download_status["episodes_skipped"] += 1
                         q.put(
@@ -573,8 +573,8 @@ def _fetch_current_audiobook():
         if not audiobook_name:
             return None
 
-        # Filter out episodes from other audiobooks (feed may mix old + new)
-        cards = core.filter_cards_by_audiobook(cards, audiobook_name)
+        # Keep this book's episodes, one per number, in order (the feed may mix books)
+        cards = core.select_episodes(cards, audiobook_name)
         if not cards:
             return None
 
@@ -589,14 +589,11 @@ def _fetch_current_audiobook():
             cover_url = images.get("square") or images.get("cover") or catalog_card.get("image", "")
             cover_url = core.full_image_url(cover_url)
 
-        # Sort episodes by number
-        sorted_cards = sorted(cards, key=lambda c: int(c.get("episode", 0) or 0))
-
         # Check download status using author/title structure
         output_dir = core.book_dir(DOWNLOADS_DIR, author_name, audiobook_name)
-        for i, ep in enumerate(sorted_cards):
+        for i, ep in enumerate(cards):
             filename = core.build_episode_filename(ep, i)
-            ep["_downloaded"] = (output_dir / filename).exists()
+            ep["_downloaded"] = bool(core.existing_episode_file(output_dir, filename))
             ep["_duration"] = ep.get("literal_duration", ep.get("duration_small_format", ""))
 
         downloading = _is_any_download_active()
@@ -607,9 +604,9 @@ def _fetch_current_audiobook():
             "reader": reader_name or "",
             "description": catalog_card.get("description", desc) if catalog_card else desc,
             "cover_url": cover_url,
-            "episodes": sorted_cards,
-            "total": len(sorted_cards),
-            "downloaded_count": sum(1 for e in sorted_cards if e.get("_downloaded")),
+            "episodes": cards,
+            "total": len(cards),
+            "downloaded_count": sum(1 for e in cards if e.get("_downloaded")),
             "downloading": downloading,
         }
     except Exception as e:

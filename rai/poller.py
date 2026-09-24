@@ -142,8 +142,8 @@ def poll_episodi(session=None, progress_callback=None):
         log.info("Current audiobook: %s", audiobook_name)
         emit({"type": "status", "message": f"Current audiobook: {audiobook_name}"})
 
-        # Filter out episodes from other audiobooks (the feed may mix old + new)
-        cards = core.filter_cards_by_audiobook(cards, audiobook_name)
+        # Keep this book's episodes, one per number, in order (the feed may mix books)
+        cards = core.select_episodes(cards, audiobook_name)
         if not cards:
             result["error"] = f"No episodes found for '{audiobook_name}' after filtering"
             result["success"] = False
@@ -194,16 +194,10 @@ def poll_episodi(session=None, progress_callback=None):
         output_dir.mkdir(parents=True, exist_ok=True)
         total = len(cards)
 
-        # Sort by episode number
-        sorted_cards = sorted(
-            cards,
-            key=lambda c: int(c.get("episode", 0) or 0),
-        )
-
         episode_meta_list = []
         seen_paths = state.get("episodes_seen", {}).get(audiobook_name, [])
 
-        for idx, card in enumerate(sorted_cards):
+        for idx, card in enumerate(cards):
             ep_num = card.get("episode", idx + 1)
             ep_title = card.get("episode_title", card.get("toptitle", card.get("title", "")))
             path_id = card.get("path_id", "")
@@ -224,7 +218,7 @@ def poll_episodi(session=None, progress_callback=None):
                 seen_paths.append(path_id)
 
             # Skip if already downloaded
-            if filepath.exists() and filepath.stat().st_size > 0:
+            if core.existing_episode_file(output_dir, filename):
                 result["episodes_skipped"] += 1
                 emit(
                     {

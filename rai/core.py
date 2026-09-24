@@ -1,5 +1,6 @@
 """Core download logic shared by CLI and web UI."""
 
+import logging
 import os
 import re
 import time
@@ -7,6 +8,8 @@ from pathlib import Path
 
 import requests
 from tqdm import tqdm
+
+log = logging.getLogger(__name__)
 
 BASE_URL = "https://www.raiplaysound.it"
 CATALOG_PATH = "/programmi/adaltavoce/audiolibri"
@@ -101,15 +104,36 @@ def sanitize_filename(name):
     return name or "unknown"
 
 
+def episode_number(card):
+    """The episode number RAI gives a card, or None when it gives none."""
+    try:
+        return int(card.get("episode_number") or card.get("episode"))
+    except (ValueError, TypeError):
+        return None
+
+
 def build_episode_filename(card, idx):
     """Build a filename like '001 - Title.mp3' from a card."""
     title = card.get("title", card.get("name", f"episode_{idx + 1}"))
-    episode_num = card.get("episode_number") or card.get("episode") or str(idx + 1)
-    try:
-        episode_num = int(episode_num)
-        return f"{episode_num:03d} - {sanitize_filename(title)}.mp3"
-    except (ValueError, TypeError):
-        return f"{idx + 1:03d} - {sanitize_filename(title)}.mp3"
+    number = episode_number(card)
+    if number is None:
+        number = idx + 1
+    return f"{number:03d} - {sanitize_filename(title)}.mp3"
+
+
+def existing_episode_file(output_dir, filename):
+    """The file already on disk under this episode's number, or None.
+
+    Matches the "NNN - " prefix, not the whole name. The rest of the name is the
+    episode title, which RAI sets to the broadcast date, so the same episode from
+    another airing gets a different name. Matching the number keeps a book from
+    ever holding two files for one episode.
+    """
+    number = filename.split(" - ", 1)[0]
+    for path in sorted(Path(output_dir).glob(f"{number} - *.mp3")):
+        if path.stat().st_size > 0:
+            return path
+    return None
 
 
 def has_episodes(path):
@@ -148,13 +172,15 @@ def book_dirs(downloads_dir):
 
 
 def download_file(url, path, session, progress_callback=None):
-    """Download a file with optional progress callback. Skips if already exists.
+    """Download a file with optional progress callback.
+
+    Skips when a file for this episode number is already there, whatever its name.
 
     Args:
         progress_callback: Optional callable(bytes_so_far, total_bytes).
                           If None, uses tqdm for terminal progress.
     """
-    if path.exists() and path.stat().st_size > 0:
+    if existing_episode_file(path.parent, path.name):
         return "skipped"
 
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -308,26 +334,46 @@ def parse_audiobook_from_episodi(cards):
     return None
 
 
-def filter_cards_by_audiobook(cards, audiobook_name):
-    """Keep only cards belonging to the given audiobook.
+def select_episodes(cards, title):
+    """One book's episodes from a feed, one card per episode number, in order.
 
-    The episodi feed may mix episodes from the current and previous audiobook.
-    Each card's episode_title is like '3. Uomini e no' — we compare the book
-    name portion against *audiobook_name* (case-insensitive).
+    RAI's feeds mix books. The Sorelle Materassi page also lists "1. Uomini e no"
+    to "5. Uomini e no", the book that aired next, so sorting by number gave 1, 1,
+    2, 2, ... and would have saved two 001 files into one folder, one of them from
+    the wrong book. Cards whose episode title names another book are dropped, but
+    only when some card names this one: an anthology titles each episode after its
+    story, and must not be emptied.
+
+    If a number still repeats (one book listed from two airings), its first
+    broadcast wins, so file names stay stable when a book airs again. Cards with no
+    number are dropped when others have one, since any number given to them is a
+    guess that could take a real episode's place. When none have one, feed order
+    numbers them, as before.
     """
-    filtered = []
-    target = audiobook_name.lower()
-    for card in cards:
-        et = card.get("episode_title", card.get("toptitle", ""))
-        if et:
-            m = re.match(r"\d+\.\s*(.*)", et)
-            if m and m.group(1).strip().lower() == target:
-                filtered.append(card)
-                continue
-        # No parseable episode_title — include as fallback
-        if not et:
-            filtered.append(card)
-    return filtered
+    target = title.strip().casefold()
+    named = [(card, _book_name(card)) for card in cards]
+    if any(name == target for _, name in named):
+        cards = [card for card, name in named if name in (target, "")]
+
+    numbered = [card for card in cards if episode_number(card) is not None]
+    if not numbered:
+        return list(cards)
+    if len(numbered) < len(cards):
+        log.warning(
+            "Skipping %d episode(s) of %s that RAI lists without a number",
+            len(cards) - len(numbered),
+            title,
+        )
+    first_airing = {}
+    for card in sorted(numbered, key=extract_date):
+        first_airing.setdefault(episode_number(card), card)
+    return [first_airing[n] for n in sorted(first_airing)]
+
+
+def _book_name(card):
+    """The book an episode title names, folded: "3. Uomini e no" gives "uomini e no"."""
+    episode_title = card.get("episode_title") or card.get("toptitle") or ""
+    return re.sub(r"^\d+\.\s*", "", episode_title).strip().casefold()
 
 
 def parse_description(description):
