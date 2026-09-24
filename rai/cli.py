@@ -24,7 +24,7 @@ def process_episode(idx, card, session, output_dir, total, audiobook_meta=None):
     filename = core.build_episode_filename(card, idx)
     filepath = output_dir / filename
 
-    if filepath.exists() and filepath.stat().st_size > 0:
+    if core.existing_episode_file(output_dir, filename):
         print(f"{prefix} SKIP {filename} (already exists)")
         return card_title, True, "skipped"
 
@@ -105,7 +105,7 @@ def main():
         sys.exit(0)
 
     title = data.get("title") or data.get("name") or "audiobook"
-    cards = core.extract_cards(data)
+    cards = core.select_episodes(core.extract_cards(data), title)
 
     if not cards:
         print("No episodes found in JSON response.")

@@ -135,6 +135,7 @@ def create_api(app):
                 api.abort(502, f"Failed to fetch catalog: {e}")
 
             result = []
+            on_disk = app_mod._downloaded_names()
             for card in cards:
                 slug = core.extract_slug(card.get("weblink", ""))
                 result.append(
@@ -143,7 +144,7 @@ def create_api(app):
                         "title": card.get("title", ""),
                         "subtitle": card.get("subtitle", ""),
                         "cover_url": core.full_image_url(card.get("image", "")),
-                        "downloaded": app_mod._is_audiobook_downloaded(card),
+                        "downloaded": core.sanitize_filename(card.get("title", "")) in on_disk,
                     }
                 )
             return result
@@ -166,8 +167,9 @@ def create_api(app):
                 api.abort(404, "No episodes found")
 
             title = data.get("title") or data.get("name") or slug
+            sorted_cards = core.select_episodes(cards, title)
 
-            desc = cards[0].get("description", "")
+            desc = sorted_cards[0].get("description", "")
             reader_name, _, author_name = core.parse_description(desc)
             if not author_name:
                 pi = data.get("podcast_info", {})
@@ -191,11 +193,8 @@ def create_api(app):
                 if isinstance(pi, dict):
                     book_description = pi.get("description", "")
 
-            author_clean = core.sanitize_filename(author_name) if author_name else "Ad Alta Voce"
-            title_clean = core.sanitize_filename(title)
-            output_dir = app_mod.DOWNLOADS_DIR / author_clean / title_clean
+            output_dir = core.book_dir(app_mod.DOWNLOADS_DIR, author_name, title)
 
-            sorted_cards = sorted(cards, key=lambda c: int(c.get("episode", 0) or 0))
             episodes = []
             for i, ep in enumerate(sorted_cards):
                 filename = core.build_episode_filename(ep, i)
@@ -204,7 +203,7 @@ def create_api(app):
                         "number": i + 1,
                         "title": ep.get("title", ep.get("name", "")),
                         "duration": ep.get("literal_duration", ep.get("duration_small_format", "")),
-                        "downloaded": (output_dir / filename).exists(),
+                        "downloaded": bool(core.existing_episode_file(output_dir, filename)),
                     }
                 )
 
@@ -311,8 +310,9 @@ def create_api(app):
                 api.abort(404, "No episodes found")
 
             title = data.get("title") or data.get("name") or slug
+            sorted_cards = core.select_episodes(cards, title)
 
-            desc = cards[0].get("description", "")
+            desc = sorted_cards[0].get("description", "")
             reader_name, _, author_name = core.parse_description(desc)
             if not author_name:
                 pi = data.get("podcast_info", {})
@@ -327,10 +327,7 @@ def create_api(app):
                     images.get("square") or images.get("cover") or catalog_card.get("image", "")
                 )
 
-            author_clean = core.sanitize_filename(author_name) if author_name else "Ad Alta Voce"
-            title_clean = core.sanitize_filename(title)
-            output_dir = app_mod.DOWNLOADS_DIR / author_clean / title_clean
-            sorted_cards = sorted(cards, key=lambda c: int(c.get("episode", 0) or 0))
+            output_dir = core.book_dir(app_mod.DOWNLOADS_DIR, author_name, title)
 
             dl_session = core.make_session()
 
@@ -370,7 +367,7 @@ def create_api(app):
                             }
                         )
 
-                        if filepath.exists() and filepath.stat().st_size > 0:
+                        if core.existing_episode_file(output_dir, filename):
                             with app_mod._download_lock:
                                 app_mod._download_status["episodes_skipped"] += 1
                             continue

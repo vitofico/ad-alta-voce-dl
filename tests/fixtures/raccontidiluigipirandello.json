@@ -1,0 +1,38 @@
+{
+ "title": "Racconti di Luigi Pirandello",
+ "block": {
+  "cards": [
+   {
+    "episode_title": "La carriola",
+    "toptitle": "La carriola",
+    "title": "La carriola",
+    "create_date": "08-10-2014"
+   },
+   {
+    "episode_title": "Ciàula scopre la luna",
+    "toptitle": "Ciàula scopre la luna",
+    "title": "Ciàula scopre la luna",
+    "create_date": "08-10-2014",
+    "description": "Vinicio Marchioni legge \"Ciàula scopre la luna\" di Luigi Pirandello."
+   },
+   {
+    "episode_title": "La giara",
+    "toptitle": "La giara",
+    "title": "La giara",
+    "create_date": "08-10-2014"
+   },
+   {
+    "episode_title": "La signora Frola",
+    "toptitle": "La signora Frola",
+    "title": "La signora Frola",
+    "create_date": "08-10-2014"
+   },
+   {
+    "episode_title": "Tu ridi",
+    "toptitle": "Tu ridi",
+    "title": "Tu ridi",
+    "create_date": "08-10-2014"
+   }
+  ]
+ }
+}

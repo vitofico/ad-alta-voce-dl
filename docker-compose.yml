@@ -43,6 +43,9 @@ services:
     environment:
       - DOWNLOADS_DIR=/audiobooks
       - POLLER_STATE_DIR=/state
+      # Listen on every interface inside the container, so gluetun's published
+      # port reaches the app. WEB_BIND_ADDR decides who can reach that port.
+      - WEB_HOST=0.0.0.0
     volumes:
       - ${AUDIOBOOKS_DIR:-./downloads}:/audiobooks
       - dl-state:/state
@@ -65,6 +68,8 @@ services:
     environment:
       - DOWNLOADS_DIR=/audiobooks
       - POLLER_STATE_DIR=/state
+      # Inside the container only; the port above is still published to loopback.
+      - WEB_HOST=0.0.0.0
     volumes:
       - ${AUDIOBOOKS_DIR:-./downloads}:/audiobooks
       - dl-state-local:/state

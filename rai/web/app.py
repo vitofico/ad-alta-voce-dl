@@ -55,6 +55,7 @@ def _is_any_download_active():
 
 def create_app():
     app = Flask(__name__)
+    app.add_template_filter(core.resized_image_url, "resized")
 
     # Register REST API (flask-restx under /api/v1/)
     from rai.web.api import create_api
@@ -70,10 +71,11 @@ def create_app():
         catalog = []
         try:
             catalog_cards = core.fetch_catalog(_session)
+            on_disk = _downloaded_names()
             for card in catalog_cards:
                 card["_cover_url"] = core.full_image_url(card.get("image", ""))
                 card["_slug"] = core.extract_slug(card.get("weblink", ""))
-                card["_downloaded"] = _is_audiobook_downloaded(card)
+                card["_downloaded"] = core.sanitize_filename(card.get("title", "")) in on_disk
             catalog = catalog_cards
         except Exception as e:
             log.warning("Failed to fetch catalog: %s", e)
@@ -85,10 +87,10 @@ def create_app():
             catalog=catalog,
         )
 
-    @app.route("/downloaded/<author>/<name>")
-    def downloaded_detail(author, name):
-        """Show episodes for a downloaded audiobook (reads from disk)."""
-        audiobook_dir = DOWNLOADS_DIR / author / name
+    @app.route("/downloaded/<path:rel_path>")
+    def downloaded_detail(rel_path):
+        """Show episodes for a downloaded audiobook: Author/Title, or a legacy Title."""
+        audiobook_dir = DOWNLOADS_DIR / rel_path
         if not audiobook_dir.is_dir():
             return "Not found", 404
         try:
@@ -111,14 +113,13 @@ def create_app():
         has_cover = (audiobook_dir / "cover.jpg").exists()
         cover_url = ""
         if has_cover:
-            cover_url = f"/dl-files/{author}/{name}/cover.jpg"
+            cover_url = f"/dl-files/{rel_path}/cover.jpg"
         elif meta.get("cover_url"):
             cover_url = core.full_image_url(meta["cover_url"])
 
         return render_template(
             "downloaded_detail.html",
-            name=name,
-            author=author,
+            name=audiobook_dir.name,
             meta=meta,
             episodes=episodes,
             has_cover=has_cover,
@@ -268,9 +269,10 @@ def create_app():
             return "No episodes found", 404
 
         title = data.get("title") or data.get("name") or slug
+        sorted_cards = core.select_episodes(cards, title)
 
         # Parse author from first episode description
-        desc = cards[0].get("description", "")
+        desc = sorted_cards[0].get("description", "")
         reader_name, _, author_name = core.parse_description(desc)
 
         # Fallback author from podcast_info
@@ -297,14 +299,11 @@ def create_app():
                 book_description = pi.get("description", "")
 
         # Check download status per episode
-        author_clean = core.sanitize_filename(author_name) if author_name else "Ad Alta Voce"
-        title_clean = core.sanitize_filename(title)
-        output_dir = DOWNLOADS_DIR / author_clean / title_clean
+        output_dir = core.book_dir(DOWNLOADS_DIR, author_name, title)
 
-        sorted_cards = sorted(cards, key=lambda c: int(c.get("episode", 0) or 0))
         for i, ep in enumerate(sorted_cards):
             filename = core.build_episode_filename(ep, i)
-            ep["_downloaded"] = (output_dir / filename).exists()
+            ep["_downloaded"] = bool(core.existing_episode_file(output_dir, filename))
             ep["_duration"] = ep.get("literal_duration", ep.get("duration_small_format", ""))
 
         downloaded_count = sum(1 for e in sorted_cards if e.get("_downloaded"))
@@ -340,9 +339,10 @@ def create_app():
             return Response("No episodes found", status=404)
 
         title = data.get("title") or data.get("name") or slug
+        sorted_cards = core.select_episodes(cards, title)
 
         # Parse author
-        desc = cards[0].get("description", "")
+        desc = sorted_cards[0].get("description", "")
         reader_name, _, author_name = core.parse_description(desc)
         if not author_name:
             pi = data.get("podcast_info", {})
@@ -356,13 +356,10 @@ def create_app():
             images = catalog_card.get("images", {})
             cover_url = images.get("square") or images.get("cover") or catalog_card.get("image", "")
 
-        author_clean = core.sanitize_filename(author_name) if author_name else "Ad Alta Voce"
-        title_clean = core.sanitize_filename(title)
-        output_dir = DOWNLOADS_DIR / author_clean / title_clean
+        output_dir = core.book_dir(DOWNLOADS_DIR, author_name, title)
 
         q: Queue = Queue()
         dl_session = core.make_session()
-        sorted_cards = sorted(cards, key=lambda c: int(c.get("episode", 0) or 0))
 
         def do_download():
             total = len(sorted_cards)
@@ -399,7 +396,7 @@ def create_app():
                     )
 
                     # Skip if already downloaded
-                    if filepath.exists() and filepath.stat().st_size > 0:
+                    if core.existing_episode_file(output_dir, filename):
                         with _download_lock:
                             _download_status["episodes_skipped"] += 1
                         q.put(
@@ -576,8 +573,8 @@ def _fetch_current_audiobook():
         if not audiobook_name:
             return None
 
-        # Filter out episodes from other audiobooks (feed may mix old + new)
-        cards = core.filter_cards_by_audiobook(cards, audiobook_name)
+        # Keep this book's episodes, one per number, in order (the feed may mix books)
+        cards = core.select_episodes(cards, audiobook_name)
         if not cards:
             return None
 
@@ -592,14 +589,11 @@ def _fetch_current_audiobook():
             cover_url = images.get("square") or images.get("cover") or catalog_card.get("image", "")
             cover_url = core.full_image_url(cover_url)
 
-        # Sort episodes by number
-        sorted_cards = sorted(cards, key=lambda c: int(c.get("episode", 0) or 0))
-
         # Check download status using author/title structure
-        output_dir = poller._audiobook_dir(author_name, audiobook_name)
-        for i, ep in enumerate(sorted_cards):
+        output_dir = core.book_dir(DOWNLOADS_DIR, author_name, audiobook_name)
+        for i, ep in enumerate(cards):
             filename = core.build_episode_filename(ep, i)
-            ep["_downloaded"] = (output_dir / filename).exists()
+            ep["_downloaded"] = bool(core.existing_episode_file(output_dir, filename))
             ep["_duration"] = ep.get("literal_duration", ep.get("duration_small_format", ""))
 
         downloading = _is_any_download_active()
@@ -610,9 +604,9 @@ def _fetch_current_audiobook():
             "reader": reader_name or "",
             "description": catalog_card.get("description", desc) if catalog_card else desc,
             "cover_url": cover_url,
-            "episodes": sorted_cards,
-            "total": len(sorted_cards),
-            "downloaded_count": sum(1 for e in sorted_cards if e.get("_downloaded")),
+            "episodes": cards,
+            "total": len(cards),
+            "downloaded_count": sum(1 for e in cards if e.get("_downloaded")),
             "downloading": downloading,
         }
     except Exception as e:
@@ -621,42 +615,30 @@ def _fetch_current_audiobook():
 
 
 def _get_downloaded_audiobooks():
-    """Scan downloads dir for audiobooks (Author/Title structure)."""
+    """Scan downloads dir for audiobooks, in Author/Title or legacy Title folders."""
     downloaded = []
-    if not DOWNLOADS_DIR.exists():
-        return downloaded
+    for book_dir in core.book_dirs(DOWNLOADS_DIR):
+        meta = _load_audiobook_metadata(book_dir)
+        has_cover = (book_dir / "cover.jpg").exists()
+        rel_path = book_dir.relative_to(DOWNLOADS_DIR).as_posix()
+        author_dir = "" if book_dir.parent == DOWNLOADS_DIR else book_dir.parent.name
 
-    for author_dir in sorted(DOWNLOADS_DIR.iterdir()):
-        if not author_dir.is_dir() or author_dir.name.startswith("."):
-            continue
-        for book_dir in sorted(author_dir.iterdir()):
-            if not book_dir.is_dir() or book_dir.name.startswith("."):
-                continue
-            mp3_count = len(list(book_dir.glob("*.mp3")))
-            if mp3_count == 0:
-                continue
-
-            meta = _load_audiobook_metadata(book_dir)
-            has_cover = (book_dir / "cover.jpg").exists()
-            rel_path = f"{author_dir.name}/{book_dir.name}"
-
-            downloaded.append(
-                {
-                    "name": book_dir.name,
-                    "author_dir": author_dir.name,
-                    "rel_path": rel_path,
-                    "title": meta.get("title", book_dir.name),
-                    "author": meta.get("author", author_dir.name),
-                    "reader": meta.get("reader", ""),
-                    "episode_count": mp3_count,
-                    "completed": meta.get("completed", False),
-                    "cover_url": (
-                        f"/dl-files/{rel_path}/cover.jpg"
-                        if has_cover
-                        else core.full_image_url(meta.get("cover_url", ""))
-                    ),
-                }
-            )
+        downloaded.append(
+            {
+                "name": book_dir.name,
+                "rel_path": rel_path,
+                "title": meta.get("title", book_dir.name),
+                "author": meta.get("author", author_dir),
+                "reader": meta.get("reader", ""),
+                "episode_count": len(list(book_dir.glob("*.mp3"))),
+                "completed": meta.get("completed", False),
+                "cover_url": (
+                    f"/dl-files/{rel_path}/cover.jpg"
+                    if has_cover
+                    else core.full_image_url(meta.get("cover_url", ""))
+                ),
+            }
+        )
 
     return downloaded
 
@@ -672,21 +654,19 @@ def _load_audiobook_metadata(audiobook_dir):
     return {}
 
 
-def _is_audiobook_downloaded(card):
-    """Check if any episodes of an audiobook are downloaded."""
-    title = card.get("title", "")
-    if not title:
-        return False
-    # Check all author directories for a matching title
-    if not DOWNLOADS_DIR.exists():
-        return False
-    for author_dir in DOWNLOADS_DIR.iterdir():
-        if not author_dir.is_dir() or author_dir.name.startswith("."):
-            continue
-        book_dir = author_dir / core.sanitize_filename(title)
-        if book_dir.exists() and any(book_dir.glob("*.mp3")):
-            return True
-    return False
+def _downloaded_names():
+    """Folder names of every book with episodes on disk, to match catalog titles against."""
+    return {d.name for d in core.book_dirs(DOWNLOADS_DIR)}
+
+
+def _server_address(environ=os.environ):
+    """Where `python -m rai.web.app` listens: 127.0.0.1:5000 unless WEB_HOST or WEB_PORT say.
+
+    The UI has no authentication, so it stays off the LAN by default. The Docker image
+    sets WEB_HOST=0.0.0.0, because a container has to listen on its own network
+    interface for a published port to reach it.
+    """
+    return environ.get("WEB_HOST", "127.0.0.1"), int(environ.get("WEB_PORT", "5000"))
 
 
 if __name__ == "__main__":
@@ -695,4 +675,5 @@ if __name__ == "__main__":
         format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     )
     app = create_app()
-    app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
+    host, port = _server_address()
+    app.run(host=host, port=port, debug=False, threaded=True)

@@ -467,8 +467,9 @@ button:disabled {
     object-fit: cover;
 }
 
-/* Sits behind the artwork, so a missing or broken cover degrades to a
-   lettered tile instead of a blank box. */
+/* Sits behind the artwork, so a missing cover degrades to a lettered tile
+   instead of a blank box. The templates remove an <img> that fails to load,
+   so a refused cover shows this tile too, not a broken-image icon. */
 .card-placeholder {
     position: absolute;
     inset: 0;

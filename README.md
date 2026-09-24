@@ -119,6 +119,8 @@ Use the **service credentials** your provider issues for manual configuration, n
 | `SERVER_COUNTRIES` | `Italy` | Must stay Italy for RAI to serve content |
 | `AUDIOBOOKS_DIR` | `./downloads` | Host directory mounted as the library. Point it at your Audiobookshelf library and finished books land there directly |
 | `WEB_BIND_ADDR` | `0.0.0.0` | Host address the UI is published on. Set to `127.0.0.1` to keep it off the LAN |
+| `WEB_HOST` | `127.0.0.1` | Address the app itself listens on. The image sets `0.0.0.0`, so the published port can reach it inside the container |
+| `WEB_PORT` | `5000` | Port the app listens on. Outside Docker, change it if 5000 is taken, as it is by AirPlay Receiver on macOS |
 | `PROXY_BIND_ADDR` | `127.0.0.1` | Host address gluetun's HTTP proxy is published on. Loopback by default: an open proxy lets anyone route traffic through your VPN account |
 | `PUID` / `PGID` | `1000` | UID and GID the container runs as. It must be able to write `AUDIOBOOKS_DIR` |
 | `DOWNLOADS_DIR` | `/audiobooks` | Where the app writes, inside the container |
@@ -156,7 +158,7 @@ Served on port 5000, in Italian, matching the source programme:
 
 Downloads stream their progress over Server-Sent Events, so the progress bar and the per-episode state update live without reloading the page. Each episode shows one of four states at a glance: *In attesa* (queued), *In corso* (downloading), *Scaricata* (done), or *Errore* (failed).
 
-The interface follows your system light or dark theme automatically, works down to narrow phone screens, and respects `prefers-reduced-motion`. Colours meet the WCAG AA contrast ratio in both themes, and covers that are missing or slow to load fall back to a lettered tile rather than a broken image.
+The interface follows your system light or dark theme automatically, works down to narrow phone screens, and respects `prefers-reduced-motion`. Colours meet the WCAG AA contrast ratio in both themes, and a cover that is missing, still loading, or fails to load shows a lettered tile rather than a broken image.
 
 ## REST API
 
@@ -193,7 +195,7 @@ The CLI checks its own egress geolocation before starting and warns if it is not
 
 1. **Metadata.** RAI Play Sound renders a JSON view of any page by appending `.json` to the URL. That is the whole discovery mechanism: no scraping of markup, no reverse-engineered private API. Responses are cached in memory for 10 minutes.
 2. **Audio resolution.** Each episode exposes a downloadable MP3. Where a page hands back a `relinker` URL instead, the tool follows the redirect to the real CDN file.
-3. **Naming.** The reader, book title, and author are parsed out of the episode description, then sanitized into `Author/Title/NNN - Episode.mp3`.
+3. **Naming.** The reader, book title, and author are parsed out of the episode description, then sanitized into `Author/Title/NNN - Episode.mp3`. A book already on disk as `Title/`, the layout of versions before 2026.08.18 and of the CLI, is read and added to where it is, never moved.
 4. **Tagging.** Episodes get ID3v2.4 tags (title, artist, album, track number, full release date) plus embedded cover art, so audiobook players group them correctly.
 5. **Polling.** The poller records which episodes it has already fetched, detects when the programme moves on to a new book, and marks the previous one complete.
 
@@ -203,7 +205,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
 
 ```bash
 uv sync
-uv run python -m rai.web.app     # web UI on :5000
+uv run python -m rai.web.app     # web UI on 127.0.0.1:5000
 uv run python -m rai.poller      # one poll cycle
 
 uvx ruff check .                 # lint
@@ -214,7 +216,7 @@ Or use the Makefile. Run `make` on its own to list every target.
 
 | Target | What it does |
 |--------|--------------|
-| `make run` | Web UI on port 5000, writing to `./downloads` |
+| `make run` | Web UI on 127.0.0.1:5000, writing to `./downloads`. `WEB_PORT=5055 make run` moves it |
 | `make poll` | One poll cycle |
 | `make lint` | `uvx ruff check .` |
 | `make format` | `uvx ruff format .` |

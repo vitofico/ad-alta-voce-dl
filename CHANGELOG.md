@@ -1,5 +1,33 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- A cover that fails to load (RAI's image server refusing the request, for one)
+  now shows the lettered tile instead of a broken-image icon with its alt text
+- Books in the older `Title/` layout, with no author folder, are visible again:
+  listed under Scaricati, badged in the catalogue, and counted on their episode
+  lists. Versions before 2026.08.18 wrote that layout, and the CLI still does.
+  **Nothing is moved.** New episodes of such a book go into its existing folder
+  instead of starting a second copy under `Author/Title/`
+- A book's episode list no longer interleaves the next book. RAI's Sorelle
+  Materassi page also lists episodes 1 to 5 of Uomini e no, which showed as
+  1, 1, 2, 2, ... and would have been downloaded into the same folder as a
+  second `001`, `002`, ... Episodes that name another book are dropped, and a
+  book never gets two files for one episode number, whatever the rest of the
+  file name says
+- Episodes RAI lists without a number are skipped with a logged warning,
+  instead of being numbered by position, which could take a real episode's number
+
+### Changed
+- Covers are requested at display size from RAI's image resizer (400 px tiles,
+  600 px headers) instead of as 2048 px originals. A fresh home page load drops
+  from 9.5 MB of images to 0.7 MB, and a full scroll of the catalogue from
+  31.5 MB to 2.1 MB
+- `python -m rai.web.app` and `make run` listen on `127.0.0.1:5000` instead of
+  `0.0.0.0:5000`. `WEB_HOST` and `WEB_PORT` change it. The Docker image sets
+  `WEB_HOST=0.0.0.0`, so containers are reachable exactly as before
+
 ## [2026.08.18]
 
 ### Added

@@ -25,7 +25,7 @@
         <div class="cover-frame">
             <div class="card-placeholder" aria-hidden="true">{{ (current.name or '')[:1] }}</div>
             {% if current.cover_url %}
-            <img src="{{ current.cover_url }}" alt="Copertina di {{ current.name }}" class="cover-large">
+            <img src="{{ current.cover_url|resized(600) }}" onerror="this.remove()" alt="Copertina di {{ current.name }}" class="cover-large" decoding="async">
             {% endif %}
         </div>
         <div class="audiobook-meta">
@@ -92,11 +92,11 @@
     </div>
     <div class="downloaded-grid">
         {% for book in downloaded %}
-        <a href="/downloaded/{{ book.author_dir }}/{{ book.name }}" class="card">
+        <a href="/downloaded/{{ book.rel_path }}" class="card">
             <div class="card-img-wrap">
                 <div class="card-placeholder" aria-hidden="true">{{ (book.title or '')[:1] }}</div>
                 {% if book.cover_url %}
-                <img src="{{ book.cover_url }}" alt="Copertina di {{ book.title }}" loading="lazy">
+                <img src="{{ book.cover_url|resized(400) }}" onerror="this.remove()" alt="Copertina di {{ book.title }}" loading="lazy" decoding="async">
                 {% endif %}
                 {% if book.completed %}
                 <span class="badge-downloaded" title="Completo">&#10003;</span>
@@ -126,7 +126,7 @@
             <div class="card-img-wrap">
                 <div class="card-placeholder" aria-hidden="true">{{ (book.title or '')[:1] }}</div>
                 {% if book._cover_url %}
-                <img src="{{ book._cover_url }}" alt="Copertina di {{ book.title }}" loading="lazy">
+                <img src="{{ book._cover_url|resized(400) }}" onerror="this.remove()" alt="Copertina di {{ book.title }}" loading="lazy" decoding="async">
                 {% endif %}
                 {% if book._downloaded %}
                 <span class="badge-downloaded" title="Scaricato">&#10003;</span>

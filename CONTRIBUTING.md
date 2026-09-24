@@ -30,7 +30,7 @@ uv run python -m rai.poller      # a single poll cycle
 uv run rai-dl <url>              # one-off download
 ```
 
-You need an Italian IP for anything to return content. Without the VPN the catalog comes back empty, which is the single most common cause of "it does not work".
+You do not need the VPN to work on the app: the catalog and the book pages load from outside Italy. The audio is the part RAI can restrict to Italian IPs, so if downloads fail, check your egress IP first. The CLI prints it at startup.
 
 ## The checks
 
@@ -40,6 +40,7 @@ CI runs these on every push and PR:
 uvx ruff check .
 uvx ruff format --check .
 uv run python -m compileall -q rai/
+uv run pytest
 ```
 
 `uvx ruff format .` fixes formatting in place.
@@ -54,9 +55,9 @@ Be careful with ruff's `target-version`: it decides which modern syntax ruff con
 
 ## Tests
 
-There is no test suite yet. This is the most useful contribution available if you want one: the pure functions in `rai/core.py` (`parse_description`, `sanitize_filename`, `extract_cards`, `filter_cards_by_audiobook`) are self-contained and easy to cover without touching the network.
+The suite is pytest, in `tests/`, and CI runs it with `uv run pytest`. Never hit the live RAI API from a test: use recorded JSON fixtures trimmed to the fields the code reads, as in `tests/fixtures/`, and build library folders under pytest's `tmp_path`.
 
-If you add tests, use pytest, put them in `tests/`, and add the job to `.github/workflows/lint.yml`. Never hit the live RAI API from a test; use recorded JSON fixtures.
+`parse_description`, `sanitize_filename` and `extract_cards` in `rai/core.py` are pure and still uncovered, if you want an easy first contribution.
 
 ## Pull requests
 
