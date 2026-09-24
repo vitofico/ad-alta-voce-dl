@@ -26,3 +26,18 @@ jobs:
 
       - name: Byte-compile all modules
         run: uv run python -m compileall -q rai/
+
+  pytest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Run tests
+        run: uv run pytest
