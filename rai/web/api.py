@@ -135,6 +135,7 @@ def create_api(app):
                 api.abort(502, f"Failed to fetch catalog: {e}")
 
             result = []
+            on_disk = app_mod._downloaded_names()
             for card in cards:
                 slug = core.extract_slug(card.get("weblink", ""))
                 result.append(
@@ -143,7 +144,7 @@ def create_api(app):
                         "title": card.get("title", ""),
                         "subtitle": card.get("subtitle", ""),
                         "cover_url": core.full_image_url(card.get("image", "")),
-                        "downloaded": app_mod._is_audiobook_downloaded(card),
+                        "downloaded": core.sanitize_filename(card.get("title", "")) in on_disk,
                     }
                 )
             return result
@@ -191,9 +192,7 @@ def create_api(app):
                 if isinstance(pi, dict):
                     book_description = pi.get("description", "")
 
-            author_clean = core.sanitize_filename(author_name) if author_name else "Ad Alta Voce"
-            title_clean = core.sanitize_filename(title)
-            output_dir = app_mod.DOWNLOADS_DIR / author_clean / title_clean
+            output_dir = core.book_dir(app_mod.DOWNLOADS_DIR, author_name, title)
 
             sorted_cards = sorted(cards, key=lambda c: int(c.get("episode", 0) or 0))
             episodes = []
@@ -327,9 +326,7 @@ def create_api(app):
                     images.get("square") or images.get("cover") or catalog_card.get("image", "")
                 )
 
-            author_clean = core.sanitize_filename(author_name) if author_name else "Ad Alta Voce"
-            title_clean = core.sanitize_filename(title)
-            output_dir = app_mod.DOWNLOADS_DIR / author_clean / title_clean
+            output_dir = core.book_dir(app_mod.DOWNLOADS_DIR, author_name, title)
             sorted_cards = sorted(cards, key=lambda c: int(c.get("episode", 0) or 0))
 
             dl_session = core.make_session()

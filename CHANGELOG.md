@@ -5,6 +5,11 @@
 ### Fixed
 - A cover that fails to load (RAI's image server refusing the request, for one)
   now shows the lettered tile instead of a broken-image icon with its alt text
+- Books in the older `Title/` layout, with no author folder, are visible again:
+  listed under Scaricati, badged in the catalogue, and counted on their episode
+  lists. Versions before 2026.08.18 wrote that layout, and the CLI still does.
+  **Nothing is moved.** New episodes of such a book go into its existing folder
+  instead of starting a second copy under `Author/Title/`
 
 ### Changed
 - Covers are requested at display size from RAI's image resizer (400 px tiles,

@@ -193,7 +193,7 @@ The CLI checks its own egress geolocation before starting and warns if it is not
 
 1. **Metadata.** RAI Play Sound renders a JSON view of any page by appending `.json` to the URL. That is the whole discovery mechanism: no scraping of markup, no reverse-engineered private API. Responses are cached in memory for 10 minutes.
 2. **Audio resolution.** Each episode exposes a downloadable MP3. Where a page hands back a `relinker` URL instead, the tool follows the redirect to the real CDN file.
-3. **Naming.** The reader, book title, and author are parsed out of the episode description, then sanitized into `Author/Title/NNN - Episode.mp3`.
+3. **Naming.** The reader, book title, and author are parsed out of the episode description, then sanitized into `Author/Title/NNN - Episode.mp3`. A book already on disk as `Title/`, the layout of versions before 2026.08.18 and of the CLI, is read and added to where it is, never moved.
 4. **Tagging.** Episodes get ID3v2.4 tags (title, artist, album, track number, full release date) plus embedded cover art, so audiobook players group them correctly.
 5. **Polling.** The poller records which episodes it has already fetched, detects when the programme moves on to a new book, and marks the previous one complete.
 

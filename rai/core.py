@@ -3,6 +3,7 @@
 import os
 import re
 import time
+from pathlib import Path
 
 import requests
 from tqdm import tqdm
@@ -109,6 +110,41 @@ def build_episode_filename(card, idx):
         return f"{episode_num:03d} - {sanitize_filename(title)}.mp3"
     except (ValueError, TypeError):
         return f"{idx + 1:03d} - {sanitize_filename(title)}.mp3"
+
+
+def has_episodes(path):
+    """Whether *path* is a folder holding at least one episode."""
+    return any(Path(path).glob("*.mp3"))
+
+
+def book_dir(downloads_dir, author, title):
+    """The folder for a book's episodes: <Author>/<Title>/, or <Title>/ if it is there.
+
+    Versions before 2026.08.18 wrote <Title>/ with no author level, and the CLI still
+    does. Such a folder is read and added to where it stands, never moved: people point
+    Audiobookshelf at this directory, and moving files would orphan their library.
+    """
+    downloads_dir = Path(downloads_dir)
+    title_dir = sanitize_filename(title)
+    current = downloads_dir / (sanitize_filename(author) if author else "Ad Alta Voce") / title_dir
+    legacy = downloads_dir / title_dir
+    if not has_episodes(current) and has_episodes(legacy):
+        return legacy
+    return current
+
+
+def book_dirs(downloads_dir):
+    """Every folder holding episodes, <Author>/<Title>/ or <Title>/, in name order."""
+
+    def subdirs(path):
+        if not path.is_dir():
+            return []
+        return sorted(p for p in path.iterdir() if p.is_dir() and not p.name.startswith("."))
+
+    found = []
+    for top in subdirs(Path(downloads_dir)):
+        found += [d for d in (top, *subdirs(top)) if has_episodes(d)]
+    return found
 
 
 def download_file(url, path, session, progress_callback=None):

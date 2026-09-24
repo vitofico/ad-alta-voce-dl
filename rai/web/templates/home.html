@@ -92,7 +92,7 @@
     </div>
     <div class="downloaded-grid">
         {% for book in downloaded %}
-        <a href="/downloaded/{{ book.author_dir }}/{{ book.name }}" class="card">
+        <a href="/downloaded/{{ book.rel_path }}" class="card">
             <div class="card-img-wrap">
                 <div class="card-placeholder" aria-hidden="true">{{ (book.title or '')[:1] }}</div>
                 {% if book.cover_url %}

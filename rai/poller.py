@@ -5,6 +5,7 @@ and downloads new episodes idempotently.
 
 Directory structure (Audiobookshelf-compatible):
     <DOWNLOADS_DIR>/<Author>/<Title>/001 - Episode.mp3
+A book already in the older <DOWNLOADS_DIR>/<Title>/ layout is added to in place.
 """
 
 import json
@@ -42,13 +43,6 @@ def _save_state(state):
     """Persist poller state to disk."""
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     STATE_FILE.write_text(json.dumps(state, indent=2, ensure_ascii=False))
-
-
-def _audiobook_dir(author, title):
-    """Build the output directory path: <DOWNLOADS_DIR>/<Author>/<Title>."""
-    author_clean = core.sanitize_filename(author) if author else "Ad Alta Voce"
-    title_clean = core.sanitize_filename(title)
-    return DOWNLOADS_DIR / author_clean / title_clean
 
 
 def _save_metadata(
@@ -169,7 +163,7 @@ def poll_episodi(session=None, progress_callback=None):
             log.info("Audiobook changed: %s -> %s", prev_audiobook, audiobook_name)
 
             # Mark previous audiobook as completed
-            prev_dir = _audiobook_dir(prev_author, prev_audiobook)
+            prev_dir = core.book_dir(DOWNLOADS_DIR, prev_author, prev_audiobook)
             prev_meta_path = prev_dir / "metadata.json"
             if prev_meta_path.exists():
                 try:
@@ -196,7 +190,7 @@ def poll_episodi(session=None, progress_callback=None):
             book_description = desc
 
         # 5. Download episodes (Author/Title structure for Audiobookshelf)
-        output_dir = _audiobook_dir(author, audiobook_name)
+        output_dir = core.book_dir(DOWNLOADS_DIR, author, audiobook_name)
         output_dir.mkdir(parents=True, exist_ok=True)
         total = len(cards)
 
