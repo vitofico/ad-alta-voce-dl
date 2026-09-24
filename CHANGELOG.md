@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- A cover that fails to load (RAI's image server refusing the request, for one)
+  now shows the lettered tile instead of a broken-image icon with its alt text
+
 ## [2026.08.18]
 
 ### Added

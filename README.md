@@ -156,7 +156,7 @@ Served on port 5000, in Italian, matching the source programme:
 
 Downloads stream their progress over Server-Sent Events, so the progress bar and the per-episode state update live without reloading the page. Each episode shows one of four states at a glance: *In attesa* (queued), *In corso* (downloading), *Scaricata* (done), or *Errore* (failed).
 
-The interface follows your system light or dark theme automatically, works down to narrow phone screens, and respects `prefers-reduced-motion`. Colours meet the WCAG AA contrast ratio in both themes, and covers that are missing or slow to load fall back to a lettered tile rather than a broken image.
+The interface follows your system light or dark theme automatically, works down to narrow phone screens, and respects `prefers-reduced-motion`. Colours meet the WCAG AA contrast ratio in both themes, and a cover that is missing, still loading, or fails to load shows a lettered tile rather than a broken image.
 
 ## REST API
 

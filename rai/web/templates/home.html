@@ -25,7 +25,7 @@
         <div class="cover-frame">
             <div class="card-placeholder" aria-hidden="true">{{ (current.name or '')[:1] }}</div>
             {% if current.cover_url %}
-            <img src="{{ current.cover_url }}" alt="Copertina di {{ current.name }}" class="cover-large">
+            <img src="{{ current.cover_url }}" onerror="this.remove()" alt="Copertina di {{ current.name }}" class="cover-large">
             {% endif %}
         </div>
         <div class="audiobook-meta">
@@ -96,7 +96,7 @@
             <div class="card-img-wrap">
                 <div class="card-placeholder" aria-hidden="true">{{ (book.title or '')[:1] }}</div>
                 {% if book.cover_url %}
-                <img src="{{ book.cover_url }}" alt="Copertina di {{ book.title }}" loading="lazy">
+                <img src="{{ book.cover_url }}" onerror="this.remove()" alt="Copertina di {{ book.title }}" loading="lazy">
                 {% endif %}
                 {% if book.completed %}
                 <span class="badge-downloaded" title="Completo">&#10003;</span>
@@ -126,7 +126,7 @@
             <div class="card-img-wrap">
                 <div class="card-placeholder" aria-hidden="true">{{ (book.title or '')[:1] }}</div>
                 {% if book._cover_url %}
-                <img src="{{ book._cover_url }}" alt="Copertina di {{ book.title }}" loading="lazy">
+                <img src="{{ book._cover_url }}" onerror="this.remove()" alt="Copertina di {{ book.title }}" loading="lazy">
                 {% endif %}
                 {% if book._downloaded %}
                 <span class="badge-downloaded" title="Scaricato">&#10003;</span>
