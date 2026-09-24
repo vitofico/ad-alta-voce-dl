@@ -182,6 +182,19 @@ def full_image_url(path):
     return f"{BASE_URL}{path}"
 
 
+def resized_image_url(url, width):
+    """The same RAI image, scaled by RAI's own resizer to *width* pixels wide.
+
+    Covers are 2048x2048 JPEGs of about 0.75 MB each. RAI renders any width under
+    /resizegd/<width>x-/, where a 400px cover is about 50 KB. Anything that is not
+    a RAI image, such as a cover.jpg served from the library, passes through.
+    """
+    path = url.removeprefix(BASE_URL)
+    if not path.startswith("/dl/img/"):
+        return url
+    return f"{BASE_URL}/resizegd/{width}x-{path}"
+
+
 def extract_slug(weblink):
     """Extract slug from weblink like /audiolibri/agostino → agostino."""
     if not weblink:

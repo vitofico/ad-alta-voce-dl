@@ -7,7 +7,7 @@
     <div class="cover-frame">
         <div class="card-placeholder" aria-hidden="true">{{ (title or '')[:1] }}</div>
         {% if cover_url %}
-        <img src="{{ cover_url }}" onerror="this.remove()" alt="Copertina di {{ title }}" class="cover-large">
+        <img src="{{ cover_url|resized(600) }}" onerror="this.remove()" alt="Copertina di {{ title }}" class="cover-large" decoding="async">
         {% endif %}
     </div>
     <div class="audiobook-meta">

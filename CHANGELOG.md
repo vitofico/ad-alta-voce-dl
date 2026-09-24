@@ -6,6 +6,12 @@
 - A cover that fails to load (RAI's image server refusing the request, for one)
   now shows the lettered tile instead of a broken-image icon with its alt text
 
+### Changed
+- Covers are requested at display size from RAI's image resizer (400 px tiles,
+  600 px headers) instead of as 2048 px originals. A fresh home page load drops
+  from 9.5 MB of images to 0.7 MB, and a full scroll of the catalogue from
+  31.5 MB to 2.1 MB
+
 ## [2026.08.18]
 
 ### Added

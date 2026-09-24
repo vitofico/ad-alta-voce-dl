@@ -55,6 +55,7 @@ def _is_any_download_active():
 
 def create_app():
     app = Flask(__name__)
+    app.add_template_filter(core.resized_image_url, "resized")
 
     # Register REST API (flask-restx under /api/v1/)
     from rai.web.api import create_api
