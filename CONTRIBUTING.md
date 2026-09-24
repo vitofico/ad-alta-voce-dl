@@ -30,7 +30,7 @@ uv run python -m rai.poller      # a single poll cycle
 uv run rai-dl <url>              # one-off download
 ```
 
-You need an Italian IP for anything to return content. Without the VPN the catalog comes back empty, which is the single most common cause of "it does not work".
+You do not need the VPN to work on the app: the catalog and the book pages load from outside Italy. The audio is the part RAI can restrict to Italian IPs, so if downloads fail, check your egress IP first. The CLI prints it at startup.
 
 ## The checks
 
