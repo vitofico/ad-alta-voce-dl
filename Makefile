@@ -13,7 +13,7 @@ help: ## Show this help
 		/^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-13s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@echo ""
 
-run: ## Run the web UI on port 5000
+run: ## Run the web UI on 127.0.0.1:5000 (WEB_HOST, WEB_PORT to change)
 	uv run python -m rai.web.app
 
 poll: ## Run one poll cycle

@@ -659,10 +659,21 @@ def _downloaded_names():
     return {d.name for d in core.book_dirs(DOWNLOADS_DIR)}
 
 
+def _server_address(environ=os.environ):
+    """Where `python -m rai.web.app` listens: 127.0.0.1:5000 unless WEB_HOST or WEB_PORT say.
+
+    The UI has no authentication, so it stays off the LAN by default. The Docker image
+    sets WEB_HOST=0.0.0.0, because a container has to listen on its own network
+    interface for a published port to reach it.
+    """
+    return environ.get("WEB_HOST", "127.0.0.1"), int(environ.get("WEB_PORT", "5000"))
+
+
 if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     )
     app = create_app()
-    app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
+    host, port = _server_address()
+    app.run(host=host, port=port, debug=False, threaded=True)

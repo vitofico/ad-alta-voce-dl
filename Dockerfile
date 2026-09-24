@@ -38,8 +38,11 @@ RUN groupadd --gid 1000 app \
     && chown app:app /audiobooks /state
 USER app
 
+# The app listens on loopback unless told otherwise. A container has to listen on
+# all its interfaces for the published port to reach it.
 ENV DOWNLOADS_DIR=/audiobooks \
-    POLLER_STATE_DIR=/state
+    POLLER_STATE_DIR=/state \
+    WEB_HOST=0.0.0.0
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]

@@ -24,6 +24,9 @@
   600 px headers) instead of as 2048 px originals. A fresh home page load drops
   from 9.5 MB of images to 0.7 MB, and a full scroll of the catalogue from
   31.5 MB to 2.1 MB
+- `python -m rai.web.app` and `make run` listen on `127.0.0.1:5000` instead of
+  `0.0.0.0:5000`. `WEB_HOST` and `WEB_PORT` change it. The Docker image sets
+  `WEB_HOST=0.0.0.0`, so containers are reachable exactly as before
 
 ## [2026.08.18]
 

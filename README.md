@@ -119,6 +119,8 @@ Use the **service credentials** your provider issues for manual configuration, n
 | `SERVER_COUNTRIES` | `Italy` | Must stay Italy for RAI to serve content |
 | `AUDIOBOOKS_DIR` | `./downloads` | Host directory mounted as the library. Point it at your Audiobookshelf library and finished books land there directly |
 | `WEB_BIND_ADDR` | `0.0.0.0` | Host address the UI is published on. Set to `127.0.0.1` to keep it off the LAN |
+| `WEB_HOST` | `127.0.0.1` | Address the app itself listens on. The image sets `0.0.0.0`, so the published port can reach it inside the container |
+| `WEB_PORT` | `5000` | Port the app listens on. Outside Docker, change it if 5000 is taken, as it is by AirPlay Receiver on macOS |
 | `PROXY_BIND_ADDR` | `127.0.0.1` | Host address gluetun's HTTP proxy is published on. Loopback by default: an open proxy lets anyone route traffic through your VPN account |
 | `PUID` / `PGID` | `1000` | UID and GID the container runs as. It must be able to write `AUDIOBOOKS_DIR` |
 | `DOWNLOADS_DIR` | `/audiobooks` | Where the app writes, inside the container |
@@ -203,7 +205,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
 
 ```bash
 uv sync
-uv run python -m rai.web.app     # web UI on :5000
+uv run python -m rai.web.app     # web UI on 127.0.0.1:5000
 uv run python -m rai.poller      # one poll cycle
 
 uvx ruff check .                 # lint
@@ -214,7 +216,7 @@ Or use the Makefile. Run `make` on its own to list every target.
 
 | Target | What it does |
 |--------|--------------|
-| `make run` | Web UI on port 5000, writing to `./downloads` |
+| `make run` | Web UI on 127.0.0.1:5000, writing to `./downloads`. `WEB_PORT=5055 make run` moves it |
 | `make poll` | One poll cycle |
 | `make lint` | `uvx ruff check .` |
 | `make format` | `uvx ruff format .` |
